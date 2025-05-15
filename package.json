@@ -1,0 +1,45 @@
+{
+  "name": "hr-payroll",
+  "version": "1.0.0",
+  "description": "单机版薪酬管理系统",
+  "main": "src/main.ts",
+  "scripts": {
+    "start": "ts-node src/main.ts",
+    "dev": "nodemon --exec ts-node src/main.ts",
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src --ext .ts"
+  },
+  "keywords": [
+    "payroll",
+    "hr",
+    "salary",
+    "management"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^8.0.0",
+    "electron": "^22.0.0",
+    "electron-builder": "^23.6.0",
+    "exceljs": "^4.3.0",
+    "pdfkit": "^0.13.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/jest": "^29.2.0",
+    "@types/node": "^18.11.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.40.0",
+    "@typescript-eslint/parser": "^5.40.0",
+    "eslint": "^8.25.0",
+    "jest": "^29.2.0",
+    "nodemon": "^2.0.20",
+    "ts-jest": "^29.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^4.8.0"
+  }
+}

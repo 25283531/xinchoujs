@@ -57,12 +57,16 @@
 
 ### 5. 个税设置表 (TaxSetting)
 
+该表存储个税计算相关的设置，包括不同的税率方案和计算公式。
+
 | 字段名 | 类型 | 描述 | 备注 |
 | ----- | ---- | ---- | ---- |
 | id | INTEGER | 主键 | 自增 |
-| name | VARCHAR | 设置名称 | 必填 |
-| is_default | BOOLEAN | 是否默认 | 默认false |
-| formula | TEXT | 计算公式 | JSON格式 |
+| name | VARCHAR | 设置名称 | 必填，用于区分不同的税率方案（如：2023年税率） |
+| is_default | BOOLEAN | 是否默认 | 默认false，标记当前使用的税率方案 |
+| formula | TEXT | 计算公式 | JSON格式，存储税率分级、税率、速算扣除数等信息 |
+
+
 
 ### 6. 薪酬项表 (SalaryItem)
 
@@ -72,6 +76,8 @@
 | name | VARCHAR | 薪酬项名称 | 必填 |
 | type | VARCHAR | 类型 | fixed, percentage, formula |
 | value | TEXT | 值或公式 | 根据类型存储 |
+| subsidy_cycle | INTEGER | 补贴周期 | 默认1（每月），可设置为多月一次 |
+| is_preset | BOOLEAN | 是否预置 | 默认false，预置项不可删除 |
 | description | TEXT | 描述 | 可选 |
 
 ### 7. 薪酬组表 (SalaryGroup)
@@ -136,10 +142,18 @@
 | attendance_deduction | DECIMAL | 考勤扣款 | 计算得出 |
 | reward_punishment | DECIMAL | 奖惩金额 | 计算得出 |
 | net_salary | DECIMAL | 实发工资 | 计算得出 |
-| details | TEXT | 详细计算项 | JSON格式 |
+| details | TEXT | 详细计算项 | JSON格式，包含各项收入、扣除、个税、社保等明细 |
 | status | VARCHAR | 状态 | calculated, pending |
 | created_at | DATETIME | 创建时间 | 自动生成 |
 | updated_at | DATETIME | 更新时间 | 自动更新 |
+
+## 四、个税计算业务规则
+
+1.  **计算基础**：个税计算通常基于“税前工资”减去各项允许扣除项（如社保、公积金、专项附加扣除、起征点）后的“应纳税所得额”。
+2.  **税率应用**：根据应纳税所得额，对照当前生效的个税税率表（分级累进税率）计算税款。
+3.  **速算扣除数**：应用速算扣除数简化计算。
+4.  **专项附加扣除**：系统需支持录入和管理员工的专项附加扣除信息（如子女教育、继续教育、大病医疗、住房贷款利息、住房租金、赡养老人），并在计算个税时予以扣除。
+5.  **税率表管理**：系统应允许配置和更新不同年度或地区的个税税率表。
 
 ## 二、核心数据关系
 

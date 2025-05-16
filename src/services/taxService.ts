@@ -206,3 +206,62 @@ export class TaxService {
     // });
   }
 }
+
+// 定义个税税率接口
+interface TaxBracket {
+  incomeThreshold: number; // 收入阈值
+  taxRate: number; // 税率
+  quickDeduction: number; // 速算扣除数
+}
+
+// 定义个税计算结果接口
+interface TaxCalculationResult {
+  taxableIncome: number; // 应纳税所得额
+  taxAmount: number; // 应纳税额
+}
+
+// 中国个人所得税税率表 (示例，实际应根据最新政策调整)
+const taxBrackets: TaxBracket[] = [
+  { incomeThreshold: 0, taxRate: 0.03, quickDeduction: 0 },
+  { incomeThreshold: 3000, taxRate: 0.10, quickDeduction: 210 },
+  { incomeThreshold: 12000, taxRate: 0.20, quickDeduction: 1410 },
+  { incomeThreshold: 25000, taxRate: 0.25, quickDeduction: 2660 },
+  { incomeThreshold: 35000, taxRate: 0.30, quickDeduction: 4410 },
+  { incomeThreshold: 55000, taxRate: 0.35, quickDeduction: 7160 },
+  { incomeThreshold: 80000, taxRate: 0.45, quickDeduction: 15160 },
+];
+
+/**
+ * 计算个人所得税
+ * @param income 收入 (税前)
+ * @param deductibleExpenses 允许扣除的费用 (如五险一金、专项附加扣除等)
+ * @returns 个税计算结果
+ */
+export function calculateTax(income: number, deductibleExpenses: number): TaxCalculationResult {
+  // 计算应纳税所得额
+  const taxableIncome = Math.max(0, income - deductibleExpenses);
+
+  let taxAmount = 0;
+  let applicableBracket: TaxBracket | null = null;
+
+  // 找到适用的税率区间
+  for (let i = taxBrackets.length - 1; i >= 0; i--) {
+    if (taxableIncome > taxBrackets[i].incomeThreshold) {
+      applicableBracket = taxBrackets[i];
+      break;
+    }
+  }
+
+  // 计算应纳税额
+  if (applicableBracket) {
+    taxAmount = taxableIncome * applicableBracket.taxRate - applicableBracket.quickDeduction;
+  }
+
+  // 确保税额不为负数
+  taxAmount = Math.max(0, taxAmount);
+
+  return {
+    taxableIncome,
+    taxAmount,
+  };
+}

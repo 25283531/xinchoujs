@@ -82,23 +82,62 @@ export class Database {
       return;
     }
     
-    try {
-      // 打开数据库连接
-      this.db = await open({
-        filename: config.filename,
-        driver: sqlite3.Database
-      });
-      
-      // 执行数据库迁移
-      const { MigrationManager } = await import('./migrations/migrationManager');
-      await MigrationManager.runAllMigrations();
-      
-      this.initialized = true;
-      console.log('数据库初始化成功');
-    } catch (error) {
-      console.error('数据库初始化失败:', error);
-      throw error;
+    let retryCount = 0;
+    const maxRetries = 1; // 只重试一次
+
+    while (retryCount <= maxRetries) {
+      try {
+        // 打开数据库连接
+        this.db = await open({
+          filename: config.filename,
+          driver: sqlite3.Database
+        });
+        
+        // 在执行数据库迁移之前标记为已初始化
+        this.initialized = true;
+        console.log('数据库连接已打开');
+
+        // 执行数据库迁移
+        const { MigrationManager } = await import('./migrations/migrationManager');
+        await MigrationManager.runAllMigrations();
+        
+        console.log('数据库迁移完成');
+        console.log('数据库初始化成功');
+        return; // 初始化成功，退出循环
+
+      } catch (error: any) {
+        console.error(`数据库初始化或迁移失败 (尝试 ${retryCount + 1}/${maxRetries + 1}):`, error);
+
+        if (retryCount < maxRetries) {
+          console.log(`尝试删除数据库文件 ${config.filename} 并重试...`);
+          try {
+            const fs = require('fs');
+            if (fs.existsSync(config.filename)) {
+              fs.unlinkSync(config.filename);
+              console.log('数据库文件删除成功');
+            } else {
+              console.log('数据库文件不存在，无需删除');
+            }
+          } catch (deleteError) {
+            console.error('删除数据库文件失败:', deleteError);
+            // 如果删除失败，直接抛出原始错误，不再重试
+            throw error;
+          }
+          retryCount++;
+          // 关闭可能已部分打开的连接
+          if (this.db) {
+            try { await this.db.close(); } catch (closeErr) { console.error('关闭数据库连接失败:', closeErr); }
+            this.db = null;
+          }
+          this.initialized = false; // 重置初始化状态
+        } else {
+          // 达到最大重试次数，抛出错误
+          console.error('达到最大重试次数，数据库初始化最终失败。');
+          throw error;
+        }
+      }
     }
+
   }
   
   /**

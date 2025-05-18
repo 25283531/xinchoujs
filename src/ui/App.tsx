@@ -8,9 +8,11 @@ import EmployeeManagement from './views/EmployeeManagement';
 import TaxSettings from './views/TaxSettings';
 import SalaryGroupManagement from './views/SalaryGroupManagement';
 import SalaryItemManagement from './views/SalaryItemManagement';
+import AttendanceExceptionItemsView from './views/AttendanceExceptionItemsView';
+import ImportAttendanceDataView from './views/ImportAttendanceDataView';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'payroll' | 'employee' | 'taxSettings' | 'salaryGroup' | 'salaryItem'>('payroll');
+  const [currentView, setCurrentView] = useState<'payroll' | 'employee' | 'taxSettings' | 'salaryGroup' | 'salaryItem' | 'attendanceItems' | 'importAttendance'>('payroll');
   
   return (
     <div className="app-container">
@@ -47,6 +49,18 @@ const App: React.FC = () => {
           >
             个税设置
           </button>
+          <button
+            className={currentView === 'attendanceItems' ? 'active' : ''}
+            onClick={() => setCurrentView('attendanceItems')}
+          >
+            考勤异常项
+          </button>
+          <button
+            className={currentView === 'importAttendance' ? 'active' : ''}
+            onClick={() => setCurrentView('importAttendance')}
+          >
+            导入考勤数据
+          </button>
         </nav>
       </header>
       
@@ -59,6 +73,10 @@ const App: React.FC = () => {
           <SalaryGroupManagement />
         ) : currentView === 'salaryItem' ? (
           <SalaryItemManagement />
+        ) : currentView === 'attendanceItems' ? (
+          <AttendanceExceptionItemsView />
+        ) : currentView === 'importAttendance' ? (
+          <ImportAttendanceDataView />
         ) : (
           <TaxSettings />
         )}

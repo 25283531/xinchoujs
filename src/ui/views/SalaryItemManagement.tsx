@@ -48,8 +48,13 @@ const SalaryItemManagement: React.FC = () => {
   const fetchSalaryItems = async () => {
     setLoading(true);
     try {
-      const items = await window.electronAPI.getAllSalaryItems();
-      setSalaryItems(items);
+      if (window.electronAPI) {
+        const items = await window.electronAPI.getAllSalaryItems();
+        setSalaryItems(items);
+      } else {
+        console.error('Electron API not available.');
+        message.error('Electron API 不可用，无法加载薪酬项。');
+      }
     } catch (error) {
       message.error(`获取薪酬项失败: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -193,14 +198,19 @@ const SalaryItemManagement: React.FC = () => {
   const handleDelete = async (item: SalaryItem) => {
     try {
       // 检查薪酬项是否被引用
-      const isReferenced = await window.electronAPI.isSalaryItemReferenced(item.id);
-      if (isReferenced) {
+      if (window.electronAPI) {
+        const isReferenced = await window.electronAPI.isSalaryItemReferenced(item.id);
+        if (isReferenced) {
         message.error(`无法删除薪酬项 "${item.name}"，该项目正在被薪酬组使用`);
         return;
       }
 
-      await window.electronAPI.deleteSalaryItem(item.id);
-      message.success(`薪酬项 "${item.name}" 已删除`);
+        await window.electronAPI.deleteSalaryItem(item.id);
+        message.success(`薪酬项 "${item.name}" 已删除`);
+      } else {
+        console.error('Electron API not available.');
+        message.error('Electron API 不可用，无法删除薪酬项。');
+      }
       fetchSalaryItems();
       fetchSalaryItems();
     } catch (error) {
@@ -213,16 +223,21 @@ const SalaryItemManagement: React.FC = () => {
     try {
       const values = await form.validateFields();
       
-      if (currentItem) {
-        // 更新薪酬项
-        await window.electronAPI.updateSalaryItem(currentItem.id, values);
-        message.success(`薪酬项 "${values.name}" 已更新`);
-      fetchSalaryItems();
+      if (window.electronAPI) {
+        if (currentItem) {
+          // 更新薪酬项
+          await window.electronAPI.updateSalaryItem(currentItem.id, values);
+          message.success(`薪酬项 "${values.name}" 已更新`);
+          fetchSalaryItems();
+        } else {
+          // 创建薪酬项
+          await window.electronAPI.createSalaryItem(values);
+          message.success(`薪酬项 "${values.name}" 已创建`);
+          fetchSalaryItems();
+        }
       } else {
-        // 创建薪酬项
-        await window.electronAPI.createSalaryItem(values);
-        message.success(`薪酬项 "${values.name}" 已创建`);
-      fetchSalaryItems();
+        console.error('Electron API not available.');
+        message.error('Electron API 不可用，无法保存薪酬项。');
       }
       
       setModalVisible(false);

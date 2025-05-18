@@ -5,13 +5,21 @@
 
 import { PayrollService, SalaryItem, SalaryGroup, SocialInsurance, TaxFormula, AttendanceException, RewardPunishment, PayrollResult } from './payrollService';
 import { PayrollRepository } from '../db/payrollRepository';
+import { AttendanceService, AttendanceServiceImpl } from './attendanceService';
+import { Database } from '../db/database';
+import { AttendanceRepositoryImpl } from '../db/attendanceRepository';
 
 export class PayrollServiceImpl extends PayrollService {
   private repository: PayrollRepository;
-  
+  private attendanceService: AttendanceService;
+
   constructor() {
     super();
     this.repository = new PayrollRepository();
+    // Initialize AttendanceService with necessary dependencies
+    const db = Database.getInstance().getConnection(); // Assuming Database is initialized elsewhere
+    const attendanceRepository = new AttendanceRepositoryImpl(db);
+    this.attendanceService = new AttendanceServiceImpl(attendanceRepository);
   }
   
   /**
@@ -179,8 +187,8 @@ export class PayrollServiceImpl extends PayrollService {
     const specialAdditionalDeductions = 0; // 待实现
     
     // 4. 计算考勤扣款
-    const attendanceDeduction = await this.calculateAttendanceDeduction(employeeId, yearMonth);
-    
+    const attendanceDeduction = await this.attendanceService.calculateDeductions(employeeId, yearMonth);
+
     // 5. 计算奖惩金额
     const rewardPunishment = await this.calculateRewardPunishment(employeeId, yearMonth);
     

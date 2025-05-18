@@ -18,6 +18,12 @@ export interface IElectronPayrollApi {
 }
 
 const electronApi: IElectronAPI = {
+  // 添加通用的invoke方法，用于处理任意IPC调用
+  invoke: (channel: string, ...args: any[]) => {
+    console.log(`[Preload] Calling generic invoke: ${channel}`);
+    return ipcRenderer.invoke(channel, ...args);
+  },
+  
   // PayrollService IPC
   calculateEmployeeSalary: (employeeId: number, yearMonth: string) => {
     console.log('[Preload] Calling payroll:calculateEmployeeSalary');
@@ -78,10 +84,16 @@ const electronApi: IElectronAPI = {
   isSalaryItemReferenced: (id: number) => {
     console.log('[Preload] Calling salaryItem:isSalaryItemReferenced');
     return ipcRenderer.invoke('salaryItem:isSalaryItemReferenced', id);
+  },
+
+  // AttendanceService IPC
+  getExceptionItems: () => {
+    console.log('[Preload] Calling attendance:getExceptionItems');
+    return ipcRenderer.invoke('attendance:getExceptionItems');
   }
 
   // Add other exposed APIs here
-};
+}
 
 // Expose the API to the renderer process under `window.electronAPI`
 // This is a secure way to provide an interface between the renderer and main processes.

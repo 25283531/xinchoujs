@@ -1,6 +1,10 @@
 import { SalaryGroup, SalaryItem, PayrollResult } from './services/payrollService';
+import { AttendanceExceptionItem } from './db/database';
 
 export interface IElectronAPI {
+  // 通用IPC调用方法
+  invoke: (channel: string, ...args: any[]) => Promise<any>;
+  
   // PayrollService IPC
   calculateEmployeeSalary: (employeeId: number, yearMonth: string) => Promise<PayrollResult>;
   batchCalculateSalary: (yearMonth: string, departmentId?: number) => Promise<PayrollResult[]>;
@@ -21,6 +25,9 @@ export interface IElectronAPI {
   deleteSalaryItem: (id: number) => Promise<boolean>;
   isSalaryItemReferenced: (id: number) => Promise<boolean>;
 
+  // AttendanceService IPC
+  getExceptionItems: () => Promise<AttendanceExceptionItem[]>;
+  
   // Add other exposed APIs here
 }
 

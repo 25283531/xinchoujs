@@ -55,15 +55,16 @@ const SalaryGroupManagement: React.FC = () => {
       // TODO: Replace with IPC call to main process
       // const groups = await salaryGroupService.getAllSalaryGroups();
       // const items = await salaryItemService.getAllSalaryItems();
-      // const groups: SalaryGroup[] = []; // Placeholder
-      // const items: SalaryItem[] = []; // Placeholder
-      
       // 使用 IPC 调用获取数据
-      const groups = await window.electronAPI.getAllSalaryGroups();
-      const items = await window.electronAPI.getAllSalaryItems();
-      
-      setSalaryGroups(groups);
-      setSalaryItems(items);
+      if (window.electronAPI) {
+        const groups = await window.electronAPI.getAllSalaryGroups();
+        const items = await window.electronAPI.getAllSalaryItems();
+        setSalaryGroups(groups);
+        setSalaryItems(items);
+      } else {
+        console.error('Electron API not available.');
+        message.error('Electron API 不可用，无法加载数据。');
+      }
       
       // 加载部门、职位和员工数据
       // 实际项目中应该从数据库加载
@@ -130,12 +131,17 @@ const SalaryGroupManagement: React.FC = () => {
         items: values.items || []
       };
       
-      if (currentGroup) {
-        await window.electronAPI.updateSalaryGroup(currentGroup.id, salaryGroup);
-        message.success('薪酬组更新成功');
+      if (window.electronAPI) {
+        if (currentGroup) {
+          await window.electronAPI.updateSalaryGroup(currentGroup.id, salaryGroup);
+          message.success('薪酬组更新成功');
+        } else {
+          await window.electronAPI.createSalaryGroup(salaryGroup);
+          message.success('薪酬组创建成功');
+        }
       } else {
-        await window.electronAPI.createSalaryGroup(salaryGroup);
-        message.success('薪酬组创建成功');
+        console.error('Electron API not available.');
+        message.error('Electron API 不可用，无法保存薪酬组。');
       }
       
       closeModal();
@@ -149,8 +155,13 @@ const SalaryGroupManagement: React.FC = () => {
   // 删除薪酬组
   const deleteSalaryGroup = async (id: number) => {
     try {
-      await window.electronAPI.deleteSalaryGroup(id);
-      message.success('薪酬组删除成功');
+      if (window.electronAPI) {
+        await window.electronAPI.deleteSalaryGroup(id);
+        message.success('薪酬组删除成功');
+      } else {
+        console.error('Electron API not available.');
+        message.error('Electron API 不可用，无法删除薪酬组。');
+      }
       loadData();
     } catch (error: any) {
       message.error(`删除失败: ${error.message}`);
@@ -161,8 +172,13 @@ const SalaryGroupManagement: React.FC = () => {
   // 分配薪酬组给员工
   const assignToEmployee = async (employeeId: number, salaryGroupId: number) => {
     try {
-      await window.electronAPI.assignSalaryGroupToEmployee(employeeId, salaryGroupId);
-      message.success('分配成功');
+      if (window.electronAPI) {
+        await window.electronAPI.assignSalaryGroupToEmployee(employeeId, salaryGroupId);
+        message.success('分配成功');
+      } else {
+        console.error('Electron API not available.');
+        message.error('Electron API 不可用，无法分配薪酬组。');
+      }
     } catch (error: any) {
       message.error(`分配失败: ${error.message}`);
       console.error(error);
@@ -174,8 +190,13 @@ const SalaryGroupManagement: React.FC = () => {
   // 分配薪酬组给部门
   const assignToDepartment = async (department: string, salaryGroupId: number) => {
     try {
-      await window.electronAPI.assignSalaryGroupToDepartment(department, salaryGroupId);
-      message.success('分配成功');
+      if (window.electronAPI) {
+        await window.electronAPI.assignSalaryGroupToDepartment(department, salaryGroupId);
+        message.success('分配成功');
+      } else {
+        console.error('Electron API not available.');
+        message.error('Electron API 不可用，无法分配薪酬组。');
+      }
     } catch (error: any) {
       message.error(`分配失败: ${error.message}`);
       console.error(error);
@@ -187,8 +208,13 @@ const SalaryGroupManagement: React.FC = () => {
   // 分配薪酬组给职位
   const assignToPosition = async (position: string, salaryGroupId: number) => {
     try {
-      await window.electronAPI.assignSalaryGroupToPosition(position, salaryGroupId);
-      message.success('分配成功');
+      if (window.electronAPI) {
+        await window.electronAPI.assignSalaryGroupToPosition(position, salaryGroupId);
+        message.success('分配成功');
+      } else {
+        console.error('Electron API not available.');
+        message.error('Electron API 不可用，无法分配薪酬组。');
+      }
     } catch (error: any) {
       message.error(`分配失败: ${error.message}`);
       console.error(error);

@@ -27,6 +27,9 @@ export interface IElectronAPI {
 
   // AttendanceService IPC
   getExceptionItems: () => Promise<AttendanceExceptionItem[]>;
+  defineExceptionItem: (item: AttendanceExceptionItem) => Promise<any>;
+  updateExceptionItem: (item: AttendanceExceptionItem) => Promise<any>;
+  deleteExceptionItem: (id: number) => Promise<any>;
   
   // Add other exposed APIs here
 }

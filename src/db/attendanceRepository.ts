@@ -47,11 +47,40 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
   }
 
   async getExceptionItems(): Promise<AttendanceExceptionItem[]> {
-    const rows = await this.db.all<AttendanceExceptionItem[]>(
-      `SELECT id, name, deduction_rule_type, deduction_rule_value, deduction_rule_threshold, notes FROM attendance_exception_settings`
-    );
-    console.log('Fetched exception items from DB:', rows.length);
-    return rows;
+    try {
+      // 尝试使用完整的列名查询
+      const rows = await this.db.all<AttendanceExceptionItem[]>(
+        `SELECT id, name, deduction_rule_type, deduction_rule_value, deduction_rule_threshold, notes FROM attendance_exception_settings`
+      );
+      console.log('Fetched exception items from DB:', rows.length);
+      return rows;
+    } catch (error) {
+      console.warn('使用完整列名查询失败，尝试使用基本列名查询:', error);
+      
+      try {
+        // 如果完整查询失败，使用基本列查询，然后手动添加缺失的属性
+        const basicRows = await this.db.all<any[]>(
+          `SELECT id, name, notes FROM attendance_exception_settings`
+        );
+        
+        // 手动添加缺失的属性，设置默认值
+        const completeRows: AttendanceExceptionItem[] = basicRows.map(row => ({
+          id: row.id,
+          name: row.name,
+          notes: row.notes,
+          deductionRuleType: 'fixed', // 默认值
+          deductionRuleValue: 0,      // 默认值
+          deductionRuleThreshold: 0   // 默认值
+        }));
+        
+        console.log('Fetched basic exception items and added default values:', completeRows.length);
+        return completeRows;
+      } catch (innerError) {
+        console.error('基本列查询也失败:', innerError);
+        // 如果所有查询都失败，返回空数组
+        return [];
+      }
+    }
   }
 
   async updateExceptionItem(item: AttendanceExceptionItem): Promise<void> {

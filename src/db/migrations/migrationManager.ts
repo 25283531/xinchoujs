@@ -1,0 +1,153 @@
+/**
+ * 数据库迁移管理器
+ * 用于统一管理和执行所有数据库迁移脚本
+ */
+
+import { Database } from '../database';
+import { Migration, BaseMigration } from './migration';
+
+// 导入所有迁移脚本
+import { migrateAttendanceExceptionSettings } from './attendanceExceptionMigration';
+import { InitialSchemaMigration } from './001_initial_schema';
+// 在此处导入其他迁移脚本
+
+export class MigrationManager {
+  private static readonly MIGRATIONS_TABLE = 'schema_migrations';
+  
+  /**
+   * 确保迁移表存在
+   */
+  private static async ensureMigrationsTable(): Promise<void> {
+    const db = Database.getInstance().getConnection();
+    
+    try {
+      // 创建迁移版本跟踪表
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS ${this.MIGRATIONS_TABLE} (
+          version INTEGER PRIMARY KEY,
+          name TEXT NOT NULL,
+          executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('迁移版本跟踪表检查完成');
+    } catch (error) {
+      console.error('创建迁移版本跟踪表失败:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * 获取已执行的迁移版本列表
+   */
+  private static async getExecutedMigrations(): Promise<number[]> {
+    const db = Database.getInstance().getConnection();
+    
+    try {
+      const rows = await db.all(`SELECT version FROM ${this.MIGRATIONS_TABLE} ORDER BY version ASC`);
+      return rows.map((row: any) => row.version);
+    } catch (error) {
+      console.error('获取已执行迁移版本失败:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * 记录迁移执行
+   */
+  private static async recordMigration(migration: Migration): Promise<void> {
+    const db = Database.getInstance().getConnection();
+    
+    try {
+      await db.run(
+        `INSERT INTO ${this.MIGRATIONS_TABLE} (version, name) VALUES (?, ?)`,
+        [migration.version, migration.name]
+      );
+      console.log(`迁移 ${migration.version} (${migration.name}) 已记录`);
+    } catch (error) {
+      console.error(`记录迁移 ${migration.version} 失败:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * 获取所有可用的迁移脚本
+   */
+  private static async getAllMigrations(): Promise<Migration[]> {
+    // 这里我们将使用一个临时的迁移列表，后续会改为自动加载目录下的所有迁移文件
+    // 创建初始表结构迁移实例
+    const initialSchemaMigration = new InitialSchemaMigration();
+    
+    // 将旧的迁移函数包装为符合新接口的对象
+    const legacyAttendanceMigration: Migration = {
+      version: 2023060101,
+      name: 'Add columns to attendance_exception_settings',
+      up: migrateAttendanceExceptionSettings
+    };
+    
+    // 返回所有迁移脚本，按版本号排序
+    return [
+      initialSchemaMigration,
+      legacyAttendanceMigration,
+      // 在此处添加其他迁移脚本
+    ].sort((a, b) => a.version - b.version);
+  }
+  
+  /**
+   * 执行所有未执行的迁移脚本
+   */
+  public static async runAllMigrations(): Promise<void> {
+    console.log('开始执行数据库迁移...');
+    
+    try {
+      // 设置超时保护，确保迁移不会无限期阻塞应用程序启动
+      const migrationTimeout = setTimeout(() => {
+        console.warn('数据库迁移超时，应用程序将继续启动');
+        // 不做任何处理，让应用程序继续运行
+      }, 10000); // 10秒超时
+      
+      try {
+        // 确保迁移表存在
+        await this.ensureMigrationsTable();
+        
+        // 获取已执行的迁移版本
+        const executedVersions = await this.getExecutedMigrations();
+        console.log('已执行的迁移版本:', executedVersions);
+        
+        // 获取所有可用的迁移脚本
+        const allMigrations = await this.getAllMigrations();
+        console.log(`发现 ${allMigrations.length} 个迁移脚本`);
+        
+        // 筛选出未执行的迁移脚本
+        const pendingMigrations = allMigrations.filter(m => !executedVersions.includes(m.version));
+        console.log(`有 ${pendingMigrations.length} 个迁移脚本待执行`);
+        
+        // 按版本号顺序执行未执行的迁移脚本
+        for (const migration of pendingMigrations) {
+          console.log(`执行迁移 ${migration.version} (${migration.name})...`);
+          
+          try {
+            // 执行迁移
+            await migration.up();
+            
+            // 记录迁移执行
+            await this.recordMigration(migration);
+            
+            console.log(`迁移 ${migration.version} 执行成功`);
+          } catch (error) {
+            console.error(`迁移 ${migration.version} 执行失败:`, error);
+            // 继续执行其他迁移，不中断整个过程
+          }
+        }
+        
+        console.log('所有数据库迁移执行完成');
+      } finally {
+        // 清除超时定时器
+        clearTimeout(migrationTimeout);
+      }
+    } catch (error) {
+      console.error('数据库迁移过程中发生未预期的错误:', error);
+      // 不抛出异常，让应用程序继续运行
+      console.log('尽管迁移过程中有错误，应用程序将继续运行');
+    }
+  }
+}

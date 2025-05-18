@@ -31,9 +31,20 @@ if (isElectron) {
   process.env.LANG = 'zh_CN.UTF-8';
   process.env.LC_ALL = 'zh_CN.UTF-8';
   
-  // 设置控制台输出编码
+  // 设置控制台输出编码 - 使用非阻塞方式
   if (process.platform === 'win32') {
-    require('child_process').execSync('chcp 65001', { stdio: 'ignore' });
+    // 使用异步方式设置控制台代码页为UTF-8 (65001)
+    try {
+      // 使用spawn而不是execSync，避免阻塞主进程
+      const { spawn } = require('child_process');
+      const chcp = spawn('chcp', ['65001'], { shell: true, stdio: 'ignore' });
+      chcp.on('error', (err: Error) => {
+        console.error('设置控制台编码失败:', err);
+      });
+      console.log('正在设置控制台编码为UTF-8');
+    } catch (error) {
+      console.error('设置控制台编码失败:', error);
+    }
   }
 }
 
@@ -285,10 +296,46 @@ async function initializeServicesAndIPC() {
       console.log('[IPC Main] Received attendance:getExceptionItems');
       const items = await attendanceService.getExceptionItems();
       console.log('[IPC Main] Sending result for attendance:getExceptionItems:', items.length);
-      return items;
+      return { success: true, data: items };
     } catch (error: any) {
       console.error('[IPC Main] Error in attendance:getExceptionItems:', error);
-      throw error; // 将错误传递给渲染进程
+      return { success: false, error: error.message || '获取考勤异常项目失败' };
+    }
+  });
+
+  ipcMain.handle('attendance:defineExceptionItem', async (event, item) => {
+    try {
+      console.log('[IPC Main] Received attendance:defineExceptionItem:', item);
+      await attendanceService.defineExceptionItem(item);
+      console.log('[IPC Main] Exception item defined successfully');
+      return { success: true };
+    } catch (error: any) {
+      console.error('[IPC Main] Error in attendance:defineExceptionItem:', error);
+      return { success: false, error: error.message || '创建考勤异常项目失败' };
+    }
+  });
+
+  ipcMain.handle('attendance:updateExceptionItem', async (event, item) => {
+    try {
+      console.log('[IPC Main] Received attendance:updateExceptionItem:', item);
+      await attendanceService.updateExceptionItem(item);
+      console.log('[IPC Main] Exception item updated successfully');
+      return { success: true };
+    } catch (error: any) {
+      console.error('[IPC Main] Error in attendance:updateExceptionItem:', error);
+      return { success: false, error: error.message || '更新考勤异常项目失败' };
+    }
+  });
+
+  ipcMain.handle('attendance:deleteExceptionItem', async (event, id) => {
+    try {
+      console.log('[IPC Main] Received attendance:deleteExceptionItem:', id);
+      await attendanceService.deleteExceptionItem(id);
+      console.log('[IPC Main] Exception item deleted successfully');
+      return { success: true };
+    } catch (error: any) {
+      console.error('[IPC Main] Error in attendance:deleteExceptionItem:', error);
+      return { success: false, error: error.message || '删除考勤异常项目失败' };
     }
   });
 

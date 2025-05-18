@@ -83,15 +83,15 @@ export class Database {
     }
     
     try {
-      // 实际实现中需要打开数据库连接
-      // 实际实现中需要打开数据库连接
+      // 打开数据库连接
       this.db = await open({
         filename: config.filename,
         driver: sqlite3.Database
       });
       
-      // 创建表结构
-      await this.createTables();
+      // 执行数据库迁移
+      const { MigrationManager } = await import('./migrations/migrationManager');
+      await MigrationManager.runAllMigrations();
       
       this.initialized = true;
       console.log('数据库初始化成功');
@@ -123,218 +123,9 @@ export class Database {
     return this.db;
   }
   
-  /**
-   * 创建数据库表结构
-   */
-  private async createTables(): Promise<void> {
-    // 实际实现中需要执行SQL语句创建表
-    // 以下是示例SQL语句
-    
-    // 员工表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS employees (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        employee_no VARCHAR NOT NULL UNIQUE,
-        name VARCHAR NOT NULL,
-        department VARCHAR NOT NULL,
-        position VARCHAR NOT NULL,
-        entry_date DATE NOT NULL,
-        status INTEGER NOT NULL DEFAULT 1,
-        social_insurance_group_id INTEGER,
-        salary_group_id INTEGER,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (social_insurance_group_id) REFERENCES social_insurance_groups (id),
-        FOREIGN KEY (salary_group_id) REFERENCES salary_groups (id)
-      )
-    `);
-
-    // 考勤异常设置表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS attendance_exception_settings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name VARCHAR NOT NULL UNIQUE,
-        deduction_rule_type VARCHAR NOT NULL,
-        deduction_rule_value REAL,
-        deduction_rule_threshold REAL,
-        notes TEXT,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // 考勤异常记录表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS attendance_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        employee_id INTEGER NOT NULL,
-        record_date DATE NOT NULL,
-        exception_type_id INTEGER NOT NULL,
-        exception_count REAL NOT NULL DEFAULT 0,
-        remark TEXT,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (employee_id) REFERENCES employees (id),
-        FOREIGN KEY (exception_type_id) REFERENCES attendance_exception_settings (id)
-      )
-    `);
-
-    // 自定义字段表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS custom_fields (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        field_name VARCHAR NOT NULL,
-        field_type VARCHAR NOT NULL,
-        field_options TEXT,
-        is_required BOOLEAN NOT NULL DEFAULT 0,
-        display_order INTEGER NOT NULL DEFAULT 0
-      )
-    `);
-    
-    // 员工自定义字段值表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS employee_custom_field_values (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        employee_id INTEGER NOT NULL,
-        custom_field_id INTEGER NOT NULL,
-        field_value TEXT,
-        FOREIGN KEY (employee_id) REFERENCES employees (id),
-        FOREIGN KEY (custom_field_id) REFERENCES custom_fields (id)
-      )
-    `);
-    
-    // 社保组表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS social_insurance_groups (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name VARCHAR NOT NULL,
-        pension_personal DECIMAL NOT NULL,
-        pension_company DECIMAL NOT NULL,
-        medical_personal DECIMAL NOT NULL,
-        medical_company DECIMAL NOT NULL,
-        unemployment_personal DECIMAL NOT NULL,
-        unemployment_company DECIMAL NOT NULL,
-        injury_company DECIMAL NOT NULL,
-        maternity_company DECIMAL NOT NULL,
-        housing_personal DECIMAL NOT NULL,
-        housing_company DECIMAL NOT NULL
-      )
-    `);
-    
-    // 个税设置表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS tax_settings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name VARCHAR NOT NULL,
-        is_default BOOLEAN NOT NULL DEFAULT 0,
-        formula TEXT NOT NULL
-      )
-    `);
-    
-    // 薪酬项表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS salary_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name VARCHAR NOT NULL,
-        type VARCHAR NOT NULL,
-        value TEXT NOT NULL,
-        subsidy_cycle INTEGER NOT NULL DEFAULT 1,
-        is_preset BOOLEAN NOT NULL DEFAULT 0,
-        description TEXT
-      )
-    `);
-    
-    // 薪酬组表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS salary_groups (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name VARCHAR NOT NULL,
-        description TEXT
-      )
-    `);
-    
-    // 薪酬组项目表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS salary_group_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        salary_group_id INTEGER NOT NULL,
-        salary_item_id INTEGER NOT NULL,
-        calculation_order INTEGER NOT NULL,
-        FOREIGN KEY (salary_group_id) REFERENCES salary_groups (id),
-        FOREIGN KEY (salary_item_id) REFERENCES salary_items (id)
-      )
-    `);
-    
-    // 考勤异常设置表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS attendance_exception_settings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name VARCHAR NOT NULL,
-        deduction_rule_type VARCHAR NOT NULL, -- 扣款规则类型：fixed, per_hour, per_day_salary, tiered_count
-        deduction_rule_value DECIMAL,
-        deduction_rule_threshold INTEGER,
-        notes TEXT -- 备注
-      )
-    `);
-    
-    // 考勤记录表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS attendance_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        employee_id INTEGER NOT NULL,
-        record_date DATE NOT NULL,
-        exception_type_id INTEGER NOT NULL,
-        exception_count INTEGER NOT NULL DEFAULT 1,
-        remark TEXT,
-        FOREIGN KEY (employee_id) REFERENCES employees (id),
-        FOREIGN KEY (exception_type_id) REFERENCES attendance_exception_settings (id)
-      )
-    `);
-    
-    // 奖惩记录表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS reward_punishment_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        employee_id INTEGER NOT NULL,
-        record_date DATE NOT NULL,
-        type VARCHAR NOT NULL,
-        amount DECIMAL NOT NULL,
-        reason TEXT NOT NULL,
-        FOREIGN KEY (employee_id) REFERENCES employees (id)
-      )
-    `);
-    
-    // 工资记录表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS payroll_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        employee_id INTEGER NOT NULL,
-        year_month VARCHAR NOT NULL,
-        base_salary DECIMAL NOT NULL,
-        total_salary DECIMAL NOT NULL,
-        social_insurance DECIMAL NOT NULL,
-        tax DECIMAL NOT NULL,
-        attendance_deduction DECIMAL NOT NULL,
-        reward_punishment DECIMAL NOT NULL,
-        net_salary DECIMAL NOT NULL,
-        details TEXT NOT NULL,
-        status VARCHAR NOT NULL,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (employee_id) REFERENCES employees (id)
-      )
-    `);
-    
-    // 导出模板表
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS export_templates (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name VARCHAR NOT NULL,
-        type VARCHAR NOT NULL,
-        export_type VARCHAR NOT NULL,
-        content TEXT NOT NULL,
-        is_default BOOLEAN NOT NULL DEFAULT 0
-      )
-    `);
-  }
+  // createTables方法已移除，表结构创建现在由迁移系统管理
+  
+  // 表结构创建已移至迁移系统
   
   /**
    * 备份数据库

@@ -7,6 +7,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IElectronAPI } from './electronAPI.d'; // Import IElectronAPI
 import { PayrollResult, SalaryGroup, SalaryItem } from './services/payrollService'; // Ensure this path is correct relative to preload.ts
+import { AttendanceExceptionItem } from './db/database'; // Import AttendanceExceptionItem type
 
 // Define the API that will be exposed to the renderer process
 // This should match the IPayrollService interface in PayrollCalculator.tsx for consistency, if possible,
@@ -90,7 +91,21 @@ const electronApi: IElectronAPI = {
   getExceptionItems: () => {
     console.log('[Preload] Calling attendance:getExceptionItems');
     return ipcRenderer.invoke('attendance:getExceptionItems');
+  },
+  defineExceptionItem: (item: AttendanceExceptionItem) => {
+    console.log('[Preload] Calling attendance:defineExceptionItem');
+    return ipcRenderer.invoke('attendance:defineExceptionItem', item);
+  },
+  updateExceptionItem: (item: AttendanceExceptionItem) => {
+    console.log('[Preload] Calling attendance:updateExceptionItem');
+    return ipcRenderer.invoke('attendance:updateExceptionItem', item);
+  },
+  deleteExceptionItem: (id: number) => {
+    console.log('[Preload] Calling attendance:deleteExceptionItem');
+    return ipcRenderer.invoke('attendance:deleteExceptionItem', id);
   }
+  
+  // 注意：通用invoke方法已在对象顶部定义，不需要重复定义
 
   // Add other exposed APIs here
 }

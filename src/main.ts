@@ -27,40 +27,16 @@ if (isElectron) {
   electronApp = electron.app;
   BrowserWindow = electron.BrowserWindow;
   
-  // 设置控制台编码为UTF-8，解决中文乱码问题
-  process.env.LANG = 'zh_CN.UTF-8';
-  process.env.LC_ALL = 'zh_CN.UTF-8';
-  
-  // 设置控制台输出编码 - 使用非阻塞方式
-  if (process.platform === 'win32') {
-    // 使用异步方式设置控制台代码页为UTF-8 (65001)
-    try {
-      // 使用spawn而不是execSync，避免阻塞主进程
-      const { spawn } = require('child_process');
-      const chcp = spawn('chcp', ['65001'], { shell: true, stdio: 'ignore' });
-      chcp.on('error', (err: Error) => {
-        console.error('设置控制台编码失败:', err);
-      });
-      console.log('正在设置控制台编码为UTF-8');
-    } catch (error) {
-      console.error('设置控制台编码失败:', error);
-    }
-  }
+
+
 }
 
 /**
  * 初始化数据库连接
  */
 async function initDatabase() {
-  // 根据环境确定数据库文件路径
-  let dbPath: string;
-  if (isElectron && electronApp) {
-    // Electron环境 - 使用app.getPath
-    dbPath = path.join(electronApp.getPath('userData'), 'payroll.db');
-  } else {
-    // 非Electron环境 - 使用相对路径
-    dbPath = path.join(__dirname, '../data/payroll.db');
-  }
+  // 数据库文件路径
+  const dbPath = path.join(__dirname, '../data/payroll.db');
   
   const dbConfig: DatabaseConfig = {
     filename: dbPath,
@@ -361,6 +337,19 @@ async function initializeServicesAndIPC() {
     } catch (error: any) {
       console.error('[IPC Main] Error in salaryItem:getAllSalaryItems:', error);
       throw error; // Propagate error to the renderer process
+    }
+  });
+
+  // IPC Handler for creating a salary item
+  ipcMain.handle('salaryItem:createSalaryItem', async (event, item) => {
+    try {
+      console.log('[IPC Main] Received salaryItem:createSalaryItem:', item);
+      await salaryItemService.createSalaryItem(item);
+      console.log('[IPC Main] Salary item created successfully');
+      return { success: true };
+    } catch (error: any) {
+      console.error('[IPC Main] Error in salaryItem:createSalaryItem:', error);
+      return { success: false, error: error.message || '创建薪酬项失败' };
     }
   });
 

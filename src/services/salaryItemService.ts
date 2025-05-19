@@ -76,7 +76,7 @@ export class SalaryItemService {
     
     // 插入预置薪酬项
     const stmt = await connection.prepare(
-      'INSERT INTO salary_items (name, type, value, subsidy_cycle, is_preset, description) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO salary_items (name, type, calculation_value, subsidy_cycle, is_preset, description) VALUES (?, ?, ?, ?, ?, ?)'
     );
     
     for (const item of presetItems) {
@@ -152,7 +152,7 @@ export class SalaryItemService {
     const connection = this.db.getConnection();
     
     const result = await connection.run(
-      'INSERT INTO salary_items (name, type, value, subsidy_cycle, is_preset, description) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO salary_items (name, type, calculation_value, subsidy_cycle, is_preset, description) VALUES (?, ?, ?, ?, ?, ?)',
       [
         item.name,
         item.type,
@@ -189,7 +189,7 @@ export class SalaryItemService {
     }
     
     if (item.value !== undefined) {
-      updateFields.push('value = ?');
+      updateFields.push('calculation_value = ?');
       params.push(item.value.toString());
     }
     
@@ -257,7 +257,7 @@ export class SalaryItemService {
       id: row.id,
       name: row.name,
       type: row.type as 'fixed' | 'percentage' | 'formula',
-      value: row.type === 'fixed' ? parseFloat(row.value) : row.value,
+      value: row.type === 'fixed' ? parseFloat(row.calculation_value) : row.calculation_value,
       subsidyCycle: row.subsidy_cycle,
       isPreset: row.is_preset === 1,
       description: row.description

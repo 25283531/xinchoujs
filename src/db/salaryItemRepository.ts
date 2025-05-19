@@ -71,7 +71,7 @@ export class SalaryItemRepository {
     const connection = this.db.getConnection();
     
     const result = await connection.run(
-      'INSERT INTO salary_items (name, type, value, subsidy_cycle, is_preset, description) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO salary_items (name, type, calculation_value, subsidy_cycle, is_preset, description) VALUES (?, ?, ?, ?, ?, ?)',
       [
         item.name,
         item.type,
@@ -108,7 +108,7 @@ export class SalaryItemRepository {
     }
     
     if (item.value !== undefined) {
-      updateFields.push('value = ?');
+      updateFields.push('calculation_value = ?');
       params.push(item.value.toString());
     }
     
@@ -185,7 +185,7 @@ export class SalaryItemRepository {
       id: row.id,
       name: row.name,
       type: row.type as 'fixed' | 'percentage' | 'formula',
-      value: parseFloat(row.value),
+      value: parseFloat(row.calculation_value),
       subsidyCycle: row.subsidy_cycle,
       isPreset: row.is_preset === 1,
       description: row.description

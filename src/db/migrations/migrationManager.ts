@@ -9,6 +9,7 @@ import { Migration, BaseMigration } from './migration';
 // 导入所有迁移脚本
 import { migrateAttendanceExceptionSettings } from './attendanceExceptionMigration';
 import { InitialSchemaMigration } from './001_initial_schema';
+import { AddSubsidyCycleToSalaryItems } from './002_add_subsidy_cycle_to_salary_items';
 // 在此处导入其他迁移脚本
 
 export class MigrationManager {
@@ -88,7 +89,8 @@ export class MigrationManager {
     return [
       initialSchemaMigration,
       legacyAttendanceMigration,
-      // 在此处添加其他迁移脚本
+            // 在此处添加其他迁移脚本
+      new AddSubsidyCycleToSalaryItems(),
     ].sort((a, b) => a.version - b.version);
   }
   

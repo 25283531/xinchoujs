@@ -1,0 +1,306 @@
+/* 导入向导样式 */
+.import-wizard-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.import-wizard-modal {
+  background-color: white;
+  border-radius: 8px;
+  width: 800px;
+  max-width: 90%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.import-wizard-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.import-wizard-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.3rem;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.import-wizard-content {
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.import-wizard-footer {
+  padding: 15px 20px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* 步骤指示器 */
+.step-indicator {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+}
+
+.step-number {
+  width: 30px;
+  height: 30px;
+  background-color: #e0e0e0;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.step.active .step-number {
+  background-color: #007bff;
+  color: white;
+}
+
+.step.completed .step-number {
+  background-color: #28a745;
+  color: white;
+}
+
+.step-name {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.step.active .step-name {
+  color: #007bff;
+  font-weight: bold;
+}
+
+.step-connector {
+  height: 2px;
+  background-color: #e0e0e0;
+  flex-grow: 1;
+  margin: 0 5px;
+}
+
+/* 步骤内容样式 */
+.step-content {
+  padding: 15px 0;
+}
+
+.step-content h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+/* 文件选择步骤 */
+.file-selection {
+  text-align: center;
+}
+
+.file-input {
+  margin: 20px 0;
+  padding: 10px;
+}
+
+.selected-file {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+/* 工作表选择步骤 */
+.sheets-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.sheet-item {
+  padding: 10px 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sheet-item:hover {
+  background-color: #f5f5f5;
+}
+
+.sheet-item.selected {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+/* 数据预览步骤 */
+.preview-table-container {
+  overflow-x: auto;
+  max-height: 400px;
+  border: 1px solid #e0e0e0;
+  margin-top: 15px;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.preview-table th, .preview-table td {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  text-align: left;
+}
+
+.preview-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.preview-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* 字段映射步骤 */
+.field-mapping {
+  margin-bottom: 15px;
+}
+
+.auto-map-button {
+  margin-bottom: 15px;
+  padding: 8px 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.mapping-table-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+}
+
+.mapping-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mapping-table th, .mapping-table td {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  text-align: left;
+}
+
+.mapping-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.mapping-table select {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* 导入进度步骤 */
+.progress-container {
+  height: 20px;
+  background-color: #f5f5f5;
+  border-radius: 10px;
+  margin: 20px 0;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #007bff;
+  transition: width 0.3s ease;
+}
+
+.import-complete {
+  text-align: center;
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #d4edda;
+  border-radius: 4px;
+  color: #155724;
+}
+
+/* 按钮样式 */
+.next-button, .back-button, .finish-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.next-button {
+  background-color: #007bff;
+  color: white;
+}
+
+.next-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.back-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.finish-button {
+  background-color: #28a745;
+  color: white;
+}
+
+/* 员工管理页面导入按钮 */
+.employee-management .import-button {
+  padding: 8px 16px;
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+}

@@ -11,6 +11,7 @@ export interface SalaryItem {
   subsidyCycle: number; // 补贴周期，默认为1（每月），可设置为多月一次
   isPreset: boolean; // 是否为预置薪酬项
   description?: string;
+  isDisplayed?: boolean; // 是否在界面上显示
 }
 
 export interface SalaryGroup {

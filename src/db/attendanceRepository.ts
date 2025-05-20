@@ -1,6 +1,9 @@
-import { Database } from 'sqlite';
-import * as sqlite3 from 'sqlite3';
-import { AttendanceExceptionItem, ImportedAttendanceData } from './database';
+import { Database } from './database';
+import { BaseRepository } from './baseRepository';
+import { AppError, ErrorHandler, ErrorType } from '../utils/errorHandler';
+import { Logger } from '../utils/logger';
+import { checkTableExists, checkColumnExists } from './utils/dbUtils';
+import { AttendanceExceptionItem, ImportedAttendanceData, AttendanceRecord } from '../types/attendanceTypes';
 
 export interface AttendanceRepository {
   createExceptionItem(item: AttendanceExceptionItem): Promise<void>;
@@ -18,24 +21,25 @@ export interface AttendanceRepository {
 }
 
 
-export interface AttendanceRecord {
-  id?: number;
-  employee_id: number;
-  record_date: string; // Assuming DATE is stored as 'YYYY-MM-DD'
-  exception_type_id: number;
-  exception_count: number;
-  remark?: string;
-}
+// AttendanceRecord 接口已经从types/attendanceTypes中导入，此处不需要重复定义
 
 export class AttendanceRepositoryImpl implements AttendanceRepository {
-  private db: Database<sqlite3.Database, sqlite3.Statement>;
+  private db: Database;
+  private connection: any;
 
-  constructor(db: Database<sqlite3.Database, sqlite3.Statement>) {
+  constructor(db: Database) {
     this.db = db;
+    try {
+      this.connection = db.getConnection();
+    } catch (error) {
+      console.error('初始化AttendanceRepository时获取数据库连接失败:', error);
+      // 如果无法获取连接，则直接使用db对象
+      this.connection = db;
+    }
   }
 
   async createExceptionItem(item: AttendanceExceptionItem): Promise<void> {
-    await this.db.run(
+    await this.connection.run(
       `INSERT INTO attendance_exception_settings (name, deduction_rule_type, deduction_rule_value, deduction_rule_threshold, notes) VALUES (?, ?, ?, ?, ?)`,
       item.name,
       item.deductionRuleType,
@@ -49,7 +53,7 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
   async getExceptionItems(): Promise<AttendanceExceptionItem[]> {
     try {
       // 尝试使用完整的列名查询
-      const rows = await this.db.all<AttendanceExceptionItem[]>(
+      const rows = await this.connection.all(
         `SELECT id, name, deduction_rule_type, deduction_rule_value, deduction_rule_threshold, notes FROM attendance_exception_settings`
       );
       console.log('Fetched exception items from DB:', rows.length);
@@ -59,12 +63,12 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
       
       try {
         // 如果完整查询失败，使用基本列查询，然后手动添加缺失的属性
-        const basicRows = await this.db.all<any[]>(
+        const basicRows = await this.connection.all(
           `SELECT id, name, notes FROM attendance_exception_settings`
         );
         
         // 手动添加缺失的属性，设置默认值
-        const completeRows: AttendanceExceptionItem[] = basicRows.map(row => ({
+        const completeRows: AttendanceExceptionItem[] = basicRows.map((row: any) => ({
           id: row.id,
           name: row.name,
           notes: row.notes,
@@ -87,7 +91,7 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
     if (item.id === undefined) {
       throw new Error('Cannot update exception item without an ID.');
     }
-    await this.db.run(
+    await this.connection.run(
       `UPDATE attendance_exception_settings SET name = ?, deduction_rule_type = ?, deduction_rule_value = ?, deduction_rule_threshold = ?, notes = ? WHERE id = ?`,
       item.name,
       item.deductionRuleType,
@@ -100,12 +104,12 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
   }
 
   async deleteExceptionItem(id: number): Promise<void> {
-    await this.db.run(`DELETE FROM attendance_exception_settings WHERE id = ?`, id);
+    await this.connection.run(`DELETE FROM attendance_exception_settings WHERE id = ?`, id);
     console.log('Deleted exception item from DB:', id);
   }
 
   async saveImportedData(data: ImportedAttendanceData): Promise<number> {
-    const result = await this.db.run(
+    const result = await this.connection.run(
       `INSERT INTO imported_attendance_data (file_path, matching_keyword, import_date, status, raw_data) VALUES (?, ?, ?, ?, ?)`,
       data.filePath,
       data.matchingKeyword,
@@ -124,10 +128,10 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
   async getImportedData(id: number): Promise<ImportedAttendanceData | undefined> {
     // TODO: Implement DB fetch logic for ImportedAttendanceData by ID
     console.log('Fetching imported data from DB:', id);
-    const row = await this.db.get<ImportedAttendanceData>(
+    const row = await this.connection.get(
       `SELECT id, file_path as filePath, matching_keyword as matchingKeyword, import_date as importDate, status, raw_data as rawData FROM imported_attendance_data WHERE id = ?`,
       id
-    );
+    ) as ImportedAttendanceData | undefined;
     if (row && row.rawData) {
        // Parse rawData back to object
        row.rawData = JSON.parse(row.rawData as any);
@@ -136,7 +140,7 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
   }
 
   async updateImportedDataStatus(id: number, status: 'pending' | 'processed' | 'error'): Promise<void> {
-    await this.db.run(
+    await this.connection.run(
       `UPDATE imported_attendance_data SET status = ? WHERE id = ?`,
       status,
       id
@@ -151,14 +155,14 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
     const [year, month] = yearMonth.split('-').map(Number);
     const endDate = `${yearMonth}-${new Date(year, month, 0).getDate()}`;
 
-    const rows = await this.db.all<AttendanceRecord[]>(
+    const rows = await this.connection.all(
       `SELECT id, employee_id, record_date, exception_type_id, exception_count, remark
        FROM attendance_records
        WHERE employee_id = ? AND record_date BETWEEN ? AND ?`,
       employeeId,
       startDate,
       endDate
-    );
+    ) as AttendanceRecord[];
     console.log(`Fetched ${rows.length} attendance records for employee ${employeeId} in ${yearMonth}`);
     return rows;
   }
@@ -166,7 +170,7 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
   async getEmployeeSalaryBase(employeeId: number): Promise<number | undefined> {
     console.log(`Fetching salary base for employee ${employeeId}`);
     // Assuming 'employees' table exists with 'id' and 'monthly_salary' columns
-    const row = await this.db.get<{ monthly_salary: number }>(`SELECT monthly_salary FROM employees WHERE id = ?`, employeeId);
+    const row = await this.connection.get(`SELECT monthly_salary FROM employees WHERE id = ?`, employeeId) as { monthly_salary: number } | undefined;
     if (row && row.monthly_salary !== undefined) {
       // Assuming 21.75 working days per month for daily salary calculation
       return row.monthly_salary / 21.75;
@@ -180,7 +184,7 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
       console.log('No attendance records to save.');
       return;
     }
-    const stmt = await this.db.prepare(
+    const stmt = await this.connection.prepare(
       `INSERT INTO attendance_records (employee_id, record_date, exception_type_id, exception_count, remark) VALUES (?, ?, ?, ?, ?)`
     );
     for (const record of records) {
@@ -229,7 +233,7 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
     }
 
     if (query && params.length > 0) {
-      const row = await this.db.get<{ id: number }>(query, ...params);
+      const row = await this.connection.get(query, ...params) as { id: number } | undefined;
       if (row) {
         console.log(`Found employee ID: ${row.id}`);
         return row.id;
@@ -246,7 +250,7 @@ export class AttendanceRepositoryImpl implements AttendanceRepository {
     // Assuming rowData contains information to identify the exception type, e.g., a 'exception_type_name' field.
     // Assuming attendance_exception_settings table has 'id' and 'name' columns.
     if (rowData.exception_type_name) {
-      const row = await this.db.get<{ id: number }>(`SELECT id FROM attendance_exception_settings WHERE name = ?`, rowData.exception_type_name);
+      const row = await this.connection.get(`SELECT id FROM attendance_exception_settings WHERE name = ?`, rowData.exception_type_name) as { id: number } | undefined;
       if (row) {
         console.log(`Found exception type ID: ${row.id}`);
         return row.id;

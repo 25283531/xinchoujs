@@ -9,14 +9,7 @@ import { IElectronAPI } from './electronAPI.d'; // Import IElectronAPI
 import { PayrollResult, SalaryGroup, SalaryItem } from './services/payrollService'; // Ensure this path is correct relative to preload.ts
 import { AttendanceExceptionItem } from './db/database'; // Import AttendanceExceptionItem type
 
-// Define the API that will be exposed to the renderer process
-// This should match the IPayrollService interface in PayrollCalculator.tsx for consistency, if possible,
-// or at least provide the same functionalities.
-export interface IElectronPayrollApi {
-  calculateEmployeeSalary: (employeeId: number, yearMonth: string) => Promise<PayrollResult>;
-  batchCalculateSalary: (yearMonth: string, departmentId?: number) => Promise<PayrollResult[]>;
-  // Add other methods exposed from main process here
-}
+
 
 const electronApi: IElectronAPI = {
   // 添加通用的invoke方法，用于处理任意IPC调用
@@ -103,7 +96,157 @@ const electronApi: IElectronAPI = {
   deleteExceptionItem: (id: number) => {
     console.log('[Preload] Calling attendance:deleteExceptionItem');
     return ipcRenderer.invoke('attendance:deleteExceptionItem', id);
-  }
+  },
+  importAttendanceData: (filePath: string, matchingKeyword: string) => {
+    console.log('[Preload] Calling attendance:importAttendanceData');
+    return ipcRenderer.invoke('attendance:importAttendanceData', filePath, matchingKeyword);
+  },
+  processAttendanceData: (dataId: string) => {
+    console.log('[Preload] Calling attendance:processAttendanceData');
+    return ipcRenderer.invoke('attendance:processAttendanceData', dataId);
+  },
+
+  // EmployeeService IPC
+  getEmployeesByDepartment: (departmentId: number) => {
+    console.log('[Preload] Calling employee:getEmployeesByDepartment');
+    return ipcRenderer.invoke('employee:getEmployeesByDepartment', departmentId);
+  },
+  getAllEmployees: () => {
+    console.log('[Preload] Calling employee:getAllEmployees');
+    return ipcRenderer.invoke('employee:getAllEmployees');
+  },
+  createEmployee: (employeeData: any) => {
+    console.log('[Preload] Calling employee:createEmployee');
+    return ipcRenderer.invoke('employee:createEmployee', employeeData);
+  },
+  getEmployeeById: (id: number) => {
+    console.log('[Preload] Calling employee:getEmployeeById');
+    return ipcRenderer.invoke('employee:getEmployeeById', id);
+  },
+  updateEmployee: (id: number, employeeData: any) => {
+    console.log('[Preload] Calling employee:updateEmployee');
+    return ipcRenderer.invoke('employee:updateEmployee', id, employeeData);
+  },
+  deleteEmployee(id: number) {
+    console.log('[Preload] Calling deleteEmployee', id);
+    return ipcRenderer.invoke('employee:deleteEmployee', id);
+  },
+  
+  // 组织架构管理API - 旧式方法
+  getAllDepartments() {
+    console.log('[Preload] Calling getAllDepartments');
+    return ipcRenderer.invoke('department:getAllDepartments');
+  },
+  getDepartmentById(id: number) {
+    console.log('[Preload] Calling getDepartmentById');
+    return ipcRenderer.invoke('department:getDepartmentById', id);
+  },
+  createDepartment(departmentData: any) {
+    console.log('[Preload] Calling createDepartment');
+    return ipcRenderer.invoke('department:createDepartment', departmentData);
+  },
+  updateDepartment(id: number, departmentData: any) {
+    console.log('[Preload] Calling updateDepartment');
+    return ipcRenderer.invoke('department:updateDepartment', id, departmentData);
+  },
+  deleteDepartment(id: number) {
+    console.log('[Preload] Calling deleteDepartment');
+    return ipcRenderer.invoke('department:deleteDepartment', id);
+  },
+  getAllPositions() {
+    console.log('[Preload] Calling getAllPositions');
+    return ipcRenderer.invoke('position:getAllPositions');
+  },
+  getPositionsByDepartment(departmentId: number) {
+    console.log('[Preload] Calling getPositionsByDepartment');
+    return ipcRenderer.invoke('position:getPositionsByDepartment', departmentId);
+  },
+  getPositionById(id: number) {
+    console.log('[Preload] Calling getPositionById');
+    return ipcRenderer.invoke('position:getPositionById', id);
+  },
+  createPosition(positionData: any) {
+    console.log('[Preload] Calling createPosition');
+    return ipcRenderer.invoke('position:createPosition', positionData);
+  },
+  updatePosition(id: number, positionData: any) {
+    console.log('[Preload] Calling updatePosition');
+    return ipcRenderer.invoke('position:updatePosition', id, positionData);
+  },
+  deletePosition(id: number) {
+    console.log('[Preload] Calling deletePosition');
+    return ipcRenderer.invoke('position:deletePosition', id);
+  },
+  
+  // 组织架构管理API - 新的命名空间方式
+  'employee:getAllEmployees': () => {
+    console.log('[Preload] Calling employee:getAllEmployees');
+    return ipcRenderer.invoke('employee:getAllEmployees');
+  },
+  'employee:getEmployeeById': (id: number) => {
+    console.log('[Preload] Calling employee:getEmployeeById', id);
+    return ipcRenderer.invoke('employee:getEmployeeById', id);
+  },
+  'employee:createEmployee': (employee: any) => {
+    console.log('[Preload] Calling employee:createEmployee', employee);
+    return ipcRenderer.invoke('employee:createEmployee', employee);
+  },
+  'employee:updateEmployee': (id: number, employee: any) => {
+    console.log('[Preload] Calling employee:updateEmployee', id, employee);
+    return ipcRenderer.invoke('employee:updateEmployee', id, employee);
+  },
+  'employee:deleteEmployee': (id: number) => {
+    console.log('[Preload] Calling employee:deleteEmployee', id);
+    return ipcRenderer.invoke('employee:deleteEmployee', id);
+  },
+  'employee:batchImportEmployees': (employees: any[]) => {
+    console.log('[Preload] Calling employee:batchImportEmployees', employees.length);
+    return ipcRenderer.invoke('employee:batchImportEmployees', employees);
+  },
+  'organization:getAllDepartments': () => {
+    console.log('[Preload] Calling organization:getAllDepartments');
+    return ipcRenderer.invoke('organization:getAllDepartments');
+  },
+  'organization:getDepartmentById': (id: number) => {
+    console.log('[Preload] Calling organization:getDepartmentById', id);
+    return ipcRenderer.invoke('organization:getDepartmentById', id);
+  },
+  'organization:createDepartment': (department: any) => {
+    console.log('[Preload] Calling organization:createDepartment', department);
+    return ipcRenderer.invoke('organization:createDepartment', department);
+  },
+  'organization:updateDepartment': (id: number, department: any) => {
+    console.log('[Preload] Calling organization:updateDepartment', id, department);
+    return ipcRenderer.invoke('organization:updateDepartment', id, department);
+  },
+  'organization:deleteDepartment': (id: number) => {
+    console.log('[Preload] Calling organization:deleteDepartment', id);
+    return ipcRenderer.invoke('organization:deleteDepartment', id);
+  },
+  'organization:getAllPositions': () => {
+    console.log('[Preload] Calling organization:getAllPositions');
+    return ipcRenderer.invoke('organization:getAllPositions');
+  },
+  'organization:getPositionsByDepartment': (departmentId: number) => {
+    console.log('[Preload] Calling organization:getPositionsByDepartment', departmentId);
+    return ipcRenderer.invoke('organization:getPositionsByDepartment', departmentId);
+  },
+  'organization:getPositionById': (id: number) => {
+    console.log('[Preload] Calling organization:getPositionById', id);
+    return ipcRenderer.invoke('organization:getPositionById', id);
+  },
+  'organization:createPosition': (position: any) => {
+    console.log('[Preload] Calling organization:createPosition', position);
+    return ipcRenderer.invoke('organization:createPosition', position);
+  },
+  'organization:updatePosition': (id: number, position: any) => {
+    console.log('[Preload] Calling organization:updatePosition', id, position);
+    return ipcRenderer.invoke('organization:updatePosition', id, position);
+  },
+  'organization:deletePosition': (id: number) => {
+    console.log('[Preload] Calling organization:deletePosition', id);
+    return ipcRenderer.invoke('organization:deletePosition', id);
+  },
   
   // 注意：通用invoke方法已在对象顶部定义，不需要重复定义
 

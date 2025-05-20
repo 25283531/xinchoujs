@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Form, Input, Select, Table, Modal, Space, InputNumber } from 'antd';
-import { AttendanceExceptionItem } from '../../types/electronAPI';
+import { AttendanceExceptionItem } from '../../db/database';
 
 const { Option } = Select;
 

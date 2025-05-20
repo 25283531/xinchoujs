@@ -1,8 +1,9 @@
 import { AttendanceExceptionItem as DbAttendanceExceptionItem, ImportedAttendanceData } from '../db/database'; // 从数据库导入类型
+import { AttendanceRecord } from '../types/attendanceTypes'; // 从类型定义文件导入AttendanceRecord
 
 // 重新导出AttendanceExceptionItem类型，以便其他模块可以从这里导入
 export type AttendanceExceptionItem = DbAttendanceExceptionItem;
-import { AttendanceRepository, AttendanceRecord } from '../db/attendanceRepository';
+import { AttendanceRepository } from '../db/attendanceRepository';
 import * as path from 'path';
 import * as fs from 'fs';
 import { parse } from 'csv-parse/sync';

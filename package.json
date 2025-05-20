@@ -4,8 +4,8 @@
   "description": "单机版薪酬管理系统",
   "main": "build/main.js",
   "scripts": {
-    "start": "npm run build && electron . --enable-logging --disable-gpu --disable-software-rasterizer",
-    "dev": "npm run build && electron .",
+    "start": "chcp 65001 && SET \"LANG=zh_CN.UTF-8\" && SET \"LANGUAGE=zh_CN.UTF-8\" && npm run build && electron . --enable-logging --disable-gpu --disable-software-rasterizer",
+    "dev": "chcp 65001 && npm run build && electron .",
     "build": "tsc -b tsconfig.main.json && tsc src/preload.ts --outDir build && npm run build:ui:esbuild",
     "build:main": "tsc -b tsconfig.main.json",
     "build:ui": "tsc -b tsconfig.ui.json",

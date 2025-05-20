@@ -10,6 +10,11 @@ import { Migration, BaseMigration } from './migration';
 import { migrateAttendanceExceptionSettings } from './attendanceExceptionMigration';
 import { InitialSchemaMigration } from './001_initial_schema';
 import { AddSubsidyCycleToSalaryItems } from './002_add_subsidy_cycle_to_salary_items';
+import { CreateDepartmentsTable } from './003_create_departments_table';
+import { AddIsPresetToSalaryItems } from './004_add_is_preset_to_salary_items';
+import { FixMissingTablesAndColumns } from './005_fix_missing_tables_and_columns';
+import { AddMissingEmployeeFields } from './006_add_missing_employee_fields';
+import { CreatePositionsTable } from './007_create_positions_table';
 // 在此处导入其他迁移脚本
 
 export class MigrationManager {
@@ -89,8 +94,13 @@ export class MigrationManager {
     return [
       initialSchemaMigration,
       legacyAttendanceMigration,
-            // 在此处添加其他迁移脚本
       new AddSubsidyCycleToSalaryItems(),
+      new CreateDepartmentsTable(),
+      new AddIsPresetToSalaryItems(),
+      new FixMissingTablesAndColumns(),
+      new AddMissingEmployeeFields(),
+      new CreatePositionsTable(),
+      // 在此处添加其他迁移脚本
     ].sort((a, b) => a.version - b.version);
   }
   
@@ -137,7 +147,8 @@ export class MigrationManager {
             console.log(`迁移 ${migration.version} 执行成功`);
           } catch (error) {
             console.error(`迁移 ${migration.version} 执行失败:`, error);
-            // 继续执行其他迁移，不中断整个过程
+            // 抛出错误，中断整个迁移过程
+            throw error;
           }
         }
         
@@ -148,8 +159,12 @@ export class MigrationManager {
       }
     } catch (error) {
       console.error('数据库迁移过程中发生未预期的错误:', error);
-      // 不抛出异常，让应用程序继续运行
-      console.log('尽管迁移过程中有错误，应用程序将继续运行');
+      // 抛出异常，中断应用程序启动
+      console.log('数据库迁移失败，应用程序将退出');
+      // 使用setTimeout确保错误消息被完全打印
+      setTimeout(() => {
+        process.exit(1); // 非正常退出
+      }, 100);
     }
   }
 }

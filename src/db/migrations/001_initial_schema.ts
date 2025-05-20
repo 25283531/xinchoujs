@@ -198,6 +198,30 @@ export class InitialSchemaMigration extends BaseMigration {
         )
       `);
 
+      // 部门表
+      this.log('创建部门表...');
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS departments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name VARCHAR NOT NULL UNIQUE,
+          description TEXT,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // 职位表
+      this.log('创建职位表...');
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS positions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name VARCHAR NOT NULL UNIQUE,
+          description TEXT,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       // 薪资计算结果表
       this.log('创建薪资计算结果表...');
       await db.exec(`
@@ -260,7 +284,20 @@ export class InitialSchemaMigration extends BaseMigration {
         'custom_fields',
         'attendance_records',
         'attendance_exception_settings',
+        'payroll_results',
+        'tax_formula_levels',
+        'tax_formulas',
+        'imported_attendance_data',
+        'salary_group_items',
+        'salary_items',
+        'salary_groups',
+        'employee_custom_field_values',
+        'custom_fields',
+        'attendance_records',
+        'attendance_exception_settings',
         'social_insurance_groups',
+        'positions',
+        'departments',
         'employees'
       ];
       

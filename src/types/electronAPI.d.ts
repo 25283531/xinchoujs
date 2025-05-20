@@ -1,49 +1,41 @@
-import { SalaryGroup, SalaryItem } from '../services/payrollService';
+import { PayrollResult, SalaryGroup, SalaryItem } from '../services/payrollService';
+import { AttendanceExceptionItem, Employee, Department, Position } from '../db/database';
 
-interface AttendanceExceptionItem {
-  id?: number;
-  name: string;
-  deductionRule: string;
-  unit: 'day' | 'hour' | 'count';
-  amount?: number;
-}
+export interface IElectronAPI {
+  invoke: (channel: string, ...args: any[]) => Promise<any>;
 
-export interface ElectronAPI {
-  // Salary Group IPC
+  // PayrollService IPC
+  calculateEmployeeSalary: (employeeId: number, yearMonth: string) => Promise<any>;
+  batchCalculateSalary: (yearMonth: string, departmentId?: number) => Promise<any>;
+
+  // SalaryGroupService IPC
   getAllSalaryGroups: () => Promise<SalaryGroup[]>;
-  createSalaryGroup: (salaryGroupData: Omit<SalaryGroup, 'id'>) => Promise<any>;
-  updateSalaryGroup: (id: number, salaryGroupData: Omit<SalaryGroup, 'id'>) => Promise<any>;
-  deleteSalaryGroup: (id: number) => Promise<any>;
-  assignSalaryGroupToEmployee: (employeeId: number, salaryGroupId: number) => Promise<any>;
-  assignSalaryGroupToDepartment: (department: string, salaryGroupId: number) => Promise<any>;
-  assignSalaryGroupToPosition: (position: string, salaryGroupId: number) => Promise<any>;
+  createSalaryGroup: (salaryGroupData: Omit<SalaryGroup, 'id'>) => Promise<number>;
+  updateSalaryGroup: (id: number, salaryGroupData: Omit<SalaryGroup, 'id'>) => Promise<void>;
+  deleteSalaryGroup: (id: number) => Promise<void>;
+  assignSalaryGroupToEmployee: (employeeId: number, salaryGroupId: number) => Promise<void>;
+  assignSalaryGroupToDepartment: (department: string, salaryGroupId: number) => Promise<void>;
+  assignSalaryGroupToPosition: (position: string, salaryGroupId: number) => Promise<void>;
 
-  // Salary Item IPC
+  // SalaryItemService IPC
   getAllSalaryItems: () => Promise<SalaryItem[]>;
+  createSalaryItem: (salaryItemData: Omit<SalaryItem, 'id'>) => Promise<number>;
+  updateSalaryItem: (id: number, salaryItemData: Omit<SalaryItem, 'id'>) => Promise<void>;
+  deleteSalaryItem: (id: number) => Promise<void>;
   isSalaryItemReferenced: (id: number) => Promise<boolean>;
-  deleteSalaryItem: (id: number) => Promise<any>;
-  updateSalaryItem: (id: number, values: any) => Promise<any>;
-  createSalaryItem: (values: any) => Promise<any>;
 
-  // Attendance IPC
-  invoke(channel: 'attendance:getExceptionItems'): Promise<{ success: boolean; data?: AttendanceExceptionItem[]; error?: string }>;
-  invoke(channel: 'attendance:defineExceptionItem', item: Partial<AttendanceExceptionItem>): Promise<{ success: boolean; error?: string }>;
-  invoke(channel: 'attendance:importAttendanceData', filePath: string, matchingKeyword: string): Promise<{ success: boolean; error?: string }>;
-  invoke(channel: 'attendance:processAttendanceData', dataId: number): Promise<{ success: boolean; error?: string }>;
-  invoke(channel: 'attendance:calculateDeductions', payrollId: number): Promise<{ success: boolean; error?: string }>;
+  // AttendanceService IPC
+  getExceptionItems: () => Promise<{ success: boolean; data?: AttendanceExceptionItem[]; error?: string }>;
+  defineExceptionItem: (item: Omit<AttendanceExceptionItem, 'id'>) => Promise<{ success: boolean; data?: number; error?: string }>;
+  updateExceptionItem: (item: AttendanceExceptionItem) => Promise<{ success: boolean; error?: string }>;
+  deleteExceptionItem: (id: number) => Promise<{ success: boolean; error?: string }>;
+  importAttendanceData: (filePath: string, matchingKeyword: string) => Promise<{ success: boolean; data?: { dataId: string }; error?: string }>;
+  processAttendanceData: (dataId: string) => Promise<{ success: boolean; error?: string }>;
 
-  // Generic invoke fallback (if needed for other channels not explicitly typed)
-  invoke(channel: string, ...args: any[]): Promise<any>;
-
-  // Other potential IPC methods from main.ts (if used in renderer)
-  // payroll:calculateEmployeeSalary
-  // payroll:batchCalculateSalary
-  // send: (channel: string, ...args: any[]) => void; // If used for non-invoke
-  // on: (channel: string, listener: (event: any, ...args: any[]) => void) => (() => void); // If used for non-invoke
-}
-
-declare global {
-  interface Window {
-    electronAPI?: ElectronAPI;
-  }
+  // EmployeeService IPC (Missing methods)
+  getEmployeesByDepartment: (departmentId: number) => Promise<Employee[]>;
+  getAllEmployees: () => Promise<Employee[]>;
+  createEmployee: (employeeData: Omit<Employee, 'id' | 'department_name' | 'position_name'>) => Promise<number>;
+  getEmployeeById: (id: number) => Promise<Employee | null>;
+  updateEmployee: (id: number, employeeData: Omit<Employee, 'id' | 'department_name' | 'position_name'>) => Promise<void>;
 }

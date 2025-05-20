@@ -17,8 +17,8 @@ export class PayrollServiceImpl extends PayrollService {
     super();
     this.repository = new PayrollRepository();
     // Initialize AttendanceService with necessary dependencies
-    const db = Database.getInstance().getConnection(); // Assuming Database is initialized elsewhere
-    const attendanceRepository = new AttendanceRepositoryImpl(db);
+    const dbInstance = Database.getInstance(); // 获取数据库实例而不是连接
+    const attendanceRepository = new AttendanceRepositoryImpl(dbInstance);
     this.attendanceService = new AttendanceServiceImpl(attendanceRepository);
   }
   

@@ -100,7 +100,7 @@ export class SalaryItemService {
    */
   public async getAllSalaryItems(): Promise<SalaryItem[]> {
     const connection = this.db.getConnection();
-    const rows = await connection.all('SELECT * FROM salary_items ORDER BY id');
+    const rows = await connection.all('SELECT * FROM salary_items WHERE is_displayed = 1 ORDER BY id');
     
     return rows.map(this.mapToSalaryItem);
   }
@@ -151,15 +151,20 @@ export class SalaryItemService {
   public async createSalaryItem(item: Omit<SalaryItem, 'id'>): Promise<number> {
     const connection = this.db.getConnection();
     
+    // 生成唯一的code，使用名称加时间戳
+    const code = `${item.name}_${Date.now()}`;
+    
     const result = await connection.run(
-      'INSERT INTO salary_items (name, type, calculation_value, subsidy_cycle, is_preset, description) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO salary_items (name, type, calculation_value, subsidy_cycle, is_preset, description, code, is_displayed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
         item.name,
         item.type,
         item.value.toString(),
         item.subsidyCycle,
         item.isPreset ? 1 : 0,
-        item.description || ''
+        item.description || '',
+        code, // 使用生成的唯一代码
+        1 // 设置is_displayed为1，确保显示
       ]
     );
     
@@ -181,6 +186,10 @@ export class SalaryItemService {
     if (item.name !== undefined) {
       updateFields.push('name = ?');
       params.push(item.name);
+      
+      // 如果名称变更，也更新code
+      updateFields.push('code = ?');
+      params.push(`${item.name}_${Date.now()}`);
     }
     
     if (item.type !== undefined) {
@@ -197,6 +206,10 @@ export class SalaryItemService {
       updateFields.push('subsidy_cycle = ?');
       params.push(item.subsidyCycle);
     }
+    
+    // 确保is_displayed始终为1
+    updateFields.push('is_displayed = ?');
+    params.push(1);
     
     if (item.isPreset !== undefined) {
       updateFields.push('is_preset = ?');
@@ -260,7 +273,8 @@ export class SalaryItemService {
       value: row.type === 'fixed' ? parseFloat(row.calculation_value) : row.calculation_value,
       subsidyCycle: row.subsidy_cycle,
       isPreset: row.is_preset === 1,
-      description: row.description
+      description: row.description,
+      isDisplayed: row.is_displayed === 1
     };
   }
 }

@@ -7,6 +7,6 @@
     "composite": true,
     "target": "ES2015"
   },
-  "include": ["src/main.ts", "src/db/**/*", "src/services/**/*", "src/utils/**/*", "src/store/**/*"],
+  "include": ["src/main.ts", "src/db/**/*", "src/services/**/*", "src/utils/**/*", "src/store/**/*", "src/config/**/*", "src/types/**/*"],
   "exclude": ["src/ui/**/*", "node_modules", "**/*.spec.ts"]
 }

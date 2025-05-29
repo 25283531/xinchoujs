@@ -522,6 +522,28 @@ async function initializeServicesAndIPC() {
     }
   });
   
+  // 批量导入员工IPC处理程序
+  ipcMain.handle('employee:batchImportEmployees', async (event, employees) => {
+    try {
+      console.log(`[IPC Main] 收到employee:batchImportEmployees请求，${employees.length}条记录`);
+      
+      // 调用服务进行批量导入
+      const result = await employeeService.batchImportEmployees(employees);
+      
+      console.log(`[IPC Main] 批量导入员工完成，成功: ${result.success}，失败: ${result.failures}`);
+      return { 
+        success: true, 
+        data: result 
+      };
+    } catch (error: any) {
+      console.error('[IPC Main] employee:batchImportEmployees 错误:', error);
+      return { 
+        success: false, 
+        message: error.message || '批量导入员工失败' 
+      };
+    }
+  });
+  
   // 组织架构服务IPC处理器
   // 部门相关处理器
   ipcMain.handle('organization:getAllDepartments', async () => {

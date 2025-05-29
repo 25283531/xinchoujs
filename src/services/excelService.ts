@@ -4,6 +4,7 @@
  */
 
 import * as ExcelJS from 'exceljs';
+import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -44,54 +45,96 @@ export class ExcelService {
         throw new Error(`不支持的文件类型: ${fileExt}，仅支持.xlsx或.xls格式`);
       }
       
-      // 如果是.xls文件，提前判断并返回默认工作表
-      if (fileExt === '.xls') {
-        // 进一步细化旧版本.xls文件的处理
-        console.log('[ExcelService] 检测到.xls格式文件，返回默认工作表列表');
-        // 对于.xls文件，默认返回多个工作表选项提升用户体验
-        return [
-          '工作表1', // 默认的第一个工作表
-          '工作表2', // 提供备选工作表
-          '工作表3'  // 提供备选工作表
-        ];
-      }
+      // 保存有效的工作表列表
+      let validSheets: string[] = [];
       
       try {
-        // 读取Excel文件
-        const workbook = new ExcelJS.Workbook();
+        // 先尝试使用XLSX库读取，对.xls和.xlsx格式都有支持
+        console.log(`[ExcelService] 尝试使用XLSX库读取${fileExt}文件...`);
+        const workbook = XLSX.readFile(filePath, { type: 'binary', cellDates: true });
         
-        // 根据文件类型选择读取方式
-        console.log(`[ExcelService] 尝试读取${fileExt}文件...`);
-        await workbook.xlsx.readFile(filePath);
-        
-        // 提取工作表名称
-        if (!workbook.worksheets || workbook.worksheets.length === 0) {
-          console.warn('[ExcelService] 正常读取没有找到工作表，可能是格式兼容问题，返回默认工作表名');
-          return ['工作表1']; // 如果无法读取工作表，返回默认工作表名
+        if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
+          // 验证工作表是否真实存在，只添加实际有数据的工作表
+          validSheets = workbook.SheetNames.filter(sheetName => {
+            // 排除常见的系统表和隐藏表
+            if (
+              sheetName.startsWith('xl/') || 
+              sheetName.startsWith('_') || 
+              sheetName.includes('Hidden') || 
+              sheetName.includes('hidden') ||
+              sheetName.includes('category') ||
+              sheetName === 'categoryHiddenS' || // 特别排除这个表
+              /^\d+$/.test(sheetName) // 纯数字表名可能是系统生成的
+            ) {
+              console.log(`[ExcelService] 过滤系统表或隐藏表: ${sheetName}`);
+              return false;
+            }
+            
+            // 获取工作表
+            const sheet = workbook.Sheets[sheetName];
+            
+            // 检查工作表是否有数据
+            const hasData = sheet && Object.keys(sheet).some(key => {
+              return key !== '!ref' && key !== '!margins' && !key.startsWith('!');
+            });
+            
+            // 检查工作表是否有至少一行数据
+            if (hasData) {
+              // 尝试读取该工作表的数据
+              try {
+                const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                // 检查是否至少有一行数据
+                return data && data.length > 0 && data[0] && (data[0] as any[]).length > 0;
+              } catch (e) {
+                console.warn(`[ExcelService] 读取工作表 ${sheetName} 数据失败:`, e);
+                return false;
+              }
+            }
+            
+            return false;
+          });
+          
+          console.log('[ExcelService] 成功使用XLSX库读取工作表:', validSheets, '数量:', validSheets.length);
+          
+          if (validSheets.length > 0) {
+            return validSheets;
+          }
+          console.warn('[ExcelService] XLSX库未找到有效的工作表，尝试其他方法');
         }
         
-        const sheetNames = workbook.worksheets.map(sheet => sheet.name);
-        console.log('[ExcelService] 成功读取工作表:', sheetNames, '数量:', sheetNames.length);
-        return sheetNames;
+        // 如果XLSX库无法找到有效工作表，尝试使用ExcelJS库
+        if (fileExt === '.xlsx') {
+          console.log(`[ExcelService] 尝试使用ExcelJS读取${fileExt}文件...`);
+          const excelWorkbook = new ExcelJS.Workbook();
+          await excelWorkbook.xlsx.readFile(filePath);
+          
+          if (excelWorkbook.worksheets && excelWorkbook.worksheets.length > 0) {
+            // 验证工作表是否有数据
+            validSheets = excelWorkbook.worksheets
+              .filter(sheet => sheet.rowCount > 0) // 只保留有行数据的工作表
+              .map(sheet => sheet.name);
+            
+            console.log('[ExcelService] 成功使用ExcelJS读取工作表:', validSheets, '数量:', validSheets.length);
+            
+            if (validSheets.length > 0) {
+              return validSheets;
+            }
+          }
+        }
+        
+        // 如果没有找到有效的工作表，返回空数组，而不是默认工作表名
+        console.warn('[ExcelService] 没有找到有效的工作表');
+        return [];
+        
       } catch (innerError: any) {
-        // 如果读取失败，尝试其他方法或返回默认工作表名
-        console.warn('[ExcelService] 无法读取Excel文件，原因:', innerError.message);
-        console.log('[ExcelService] 返回默认工作表名');
-        return [
-          '工作表1', // 默认的第一个工作表
-          '工作表2', // 提供备选工作表
-          '工作表3'  // 提供备选工作表
-        ];
+        // 读取错误时，记录错误并返回空数组
+        console.warn('[ExcelService] 读取Excel文件时出错:', innerError.message);
+        return [];
       }
     } catch (error: any) {
       console.error('[ExcelService] 读取工作表失败:', error);
-      // 处理失败时，返回默认工作表名而不是抛出异常，增强程序引导性
-      console.log('[ExcelService] 失败后返回默认工作表名');
-      return [
-        '工作表1', // 默认的第一个工作表
-        '工作表2', // 提供备选工作表
-        '工作表3'  // 提供备选工作表
-      ];
+      // 处理失败时，返回空数组，而不是默认工作表
+      return [];
     }
   }
 
@@ -124,80 +167,162 @@ export class ExcelService {
       }
 
       try {
-        // 读取Excel文件
-        const workbook = new ExcelJS.Workbook();
-        console.log(`[ExcelService] 尝试读取${fileExt}文件...`);
-        await workbook.xlsx.readFile(filePath);
+        // 先尝试使用XLSX库读取，它对.xls文件有更好的支持
+        console.log(`[ExcelService] 尝试使用XLSX库读取${fileExt}文件...`);
+        const workbook = XLSX.readFile(filePath, { type: 'binary', cellDates: true });
 
-        // 尝试获取指定的工作表
-        let worksheet = workbook.getWorksheet(sheetName);
+        // 获取指定工作表
+        let worksheet = workbook.Sheets[sheetName];
 
-        // 如果未找到指定名称的工作表，尝试使用索引
-        if (!worksheet && !isNaN(Number(sheetName))) {
-          worksheet = workbook.getWorksheet(Number(sheetName));
+        // 如果没有找到指定工作表，使用第一个工作表
+        if (!worksheet && workbook.SheetNames && workbook.SheetNames.length > 0) {
+          console.log('[ExcelService] 没有找到指定工作表，使用第一个工作表:', workbook.SheetNames[0]);
+          worksheet = workbook.Sheets[workbook.SheetNames[0]];
         }
-
-        // 如果还是未找到，使用第一个工作表
-        if (!worksheet && workbook.worksheets && workbook.worksheets.length > 0) {
-          console.log('[ExcelService] 未找到指定工作表，使用第一个工作表');
-          worksheet = workbook.worksheets[0];
-        }
-
+        
         if (!worksheet) {
-          console.warn('[ExcelService] 没有找到有效的工作表，用默认数据代替');
-          // 返回默认的模拟数据
-          return this.generateDefaultData();
-        }
-
-        console.log('[ExcelService] 成功加载工作表:', worksheet.name);
-
-        // 读取表头和数据
-        const headers: string[] = [];
-        const rows: any[][] = [];
-
-        // 读取表头（第一行）
-        worksheet.getRow(1).eachCell((cell, colNumber) => {
-          headers[colNumber - 1] = cell.value?.toString() || `列${colNumber}`;
-        });
-
-        // 处理空数组的情况
-        if (headers.length === 0) {
-          console.warn('[ExcelService] 没有找到表头，使用默认表头');
-          // 返回默认的模拟数据
-          return this.generateDefaultData();
-        }
-
-        // 读取数据行
-        worksheet.eachRow((row, rowNumber) => {
-          if (rowNumber > 1) { // 跳过表头行
-            const rowData: any[] = [];
-            row.eachCell((cell, colNumber) => {
-              rowData[colNumber - 1] = cell.value;
-            });
-            rows.push(rowData);
+          console.warn('[ExcelService] 没有找到有效的工作表，尝试ExcelJS');
+          // 如果XLSX库无法正确读取，尝试使用ExcelJS
+          if (fileExt === '.xlsx') {
+            return await this.readSheetWithExcelJS(filePath, sheetName);
+          } else {
+            // 如果是.xls格式，转换为JSON并解析
+            return this.generateDefaultData();
           }
-        });
-
+        }
+        
+        // 使用XLSX将工作表转换为JSON
+        console.log('[ExcelService] 将工作表转换为JSON');
+        // 添加defval参数，确保空单元格转换为空字符串而非undefined
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
+        
+        if (!jsonData || jsonData.length === 0) {
+          console.warn('[ExcelService] 转换的JSON数据为空，使用默认数据');
+          return this.generateDefaultData();
+        }
+        
+        // 提取表头和行数据，确保单元格内容是字符串
+        const headers = (jsonData[0] as any[]).map((cell) => (cell !== undefined && cell !== null) ? cell.toString().trim() : '');
+        
+        // 预处理行数据，确保单元格内容是字符串
+        const rows = jsonData.slice(1).map(row => {
+          return (row as any[]).map(cell => {
+            // 处理数字、字符串、空值等不同类型
+            if (cell === undefined || cell === null) {
+              return '';
+            } else if (typeof cell === 'object' && cell instanceof Date) {
+              // 处理日期类型
+              return cell.toISOString().split('T')[0]; // YYYY-MM-DD格式
+            } else {
+              return cell.toString().trim();
+            }
+          });
+        }) as any[][];
+        
         // 检查如果没有数据行
         if (rows.length === 0) {
           console.warn('[ExcelService] 没有找到数据行，使用默认数据');
-          // 返回默认的模拟数据，但保留读取到的表头
           const defaultData = this.generateDefaultData();
           return { headers, rows: defaultData.rows };
         }
-
+        
         console.log(`[ExcelService] 成功读取数据: ${headers.length} 列, ${rows.length} 行`);
         return { headers, rows };
+
       } catch (innerError: any) {
-        // 遇到错误时返回默认数据
-        console.warn('[ExcelService] 读取Excel文件数据出错:', innerError.message);
-        return this.generateDefaultData();
+        // 遇到错误时尝试使用ExcelJS
+        console.warn('[ExcelService] XLSX库读取出错:', innerError.message);
+        
+        if (fileExt === '.xlsx') {
+          console.log('[ExcelService] 尝试使用ExcelJS读取');
+          try {
+            return await this.readSheetWithExcelJS(filePath, sheetName);
+          } catch (excelJSError) {
+            console.error('[ExcelService] ExcelJS读取也失败:', excelJSError);
+            return this.generateDefaultData();
+          }
+        } else {
+          // 对于.xls文件，直接返回默认数据
+          return this.generateDefaultData();
+        }
       }
     } catch (error: any) {
       console.error('[ExcelService] 读取工作表数据失败:', error);
       // 向上返回默认数据而不是抛出异常，增强程序引导性
       return this.generateDefaultData();
     }
+  }
+  
+  /**
+   * 使用ExcelJS库读取工作表数据
+   * @param filePath Excel文件路径
+   * @param sheetName 工作表名称
+   * @returns 表头和行数据
+   */
+  private async readSheetWithExcelJS(filePath: string, sheetName: string): Promise<SheetData> {
+    // 读取Excel文件
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+
+    // 尝试获取指定的工作表
+    let worksheet = workbook.getWorksheet(sheetName);
+
+    // 如果未找到指定名称的工作表，尝试使用索引
+    if (!worksheet && !isNaN(Number(sheetName))) {
+      worksheet = workbook.getWorksheet(Number(sheetName));
+    }
+
+    // 如果还是未找到，使用第一个工作表
+    if (!worksheet && workbook.worksheets && workbook.worksheets.length > 0) {
+      console.log('[ExcelService] 未找到指定工作表，使用第一个工作表');
+      worksheet = workbook.worksheets[0];
+    }
+
+    if (!worksheet) {
+      console.warn('[ExcelService] 没有找到有效的工作表，用默认数据代替');
+      // 返回默认的模拟数据
+      return this.generateDefaultData();
+    }
+
+    console.log('[ExcelService] 成功加载工作表:', worksheet.name);
+
+    // 读取表头和数据
+    const headers: string[] = [];
+    const rows: any[][] = [];
+
+    // 读取表头（第一行）
+    worksheet.getRow(1).eachCell((cell, colNumber) => {
+      headers[colNumber - 1] = cell.value?.toString() || `列${colNumber}`;
+    });
+
+    // 处理空数组的情况
+    if (headers.length === 0) {
+      console.warn('[ExcelService] 没有找到表头，使用默认表头');
+      // 返回默认的模拟数据
+      return this.generateDefaultData();
+    }
+
+    // 读取数据行
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) { // 跳过表头行
+        const rowData: any[] = [];
+        row.eachCell((cell, colNumber) => {
+          rowData[colNumber - 1] = cell.value;
+        });
+        rows.push(rowData);
+      }
+    });
+
+    // 检查如果没有数据行
+    if (rows.length === 0) {
+      console.warn('[ExcelService] 没有找到数据行，使用默认数据');
+      // 返回默认的模拟数据，但保留读取到的表头
+      const defaultData = this.generateDefaultData();
+      return { headers, rows: defaultData.rows };
+    }
+
+    console.log(`[ExcelService] 成功读取数据: ${headers.length} 列, ${rows.length} 行`);
+    return { headers, rows };
   }
   
   /**

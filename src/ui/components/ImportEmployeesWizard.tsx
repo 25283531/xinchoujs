@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../../ui/styles/importWizard.css';
+import '../../ui/styles/horizontal-steps.css';
 
 // 导入向导组件的属性接口
 interface ImportEmployeesWizardProps {
@@ -41,7 +42,7 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
   onFieldMap,
   onImport,
   onStepChange
-}) => {
+}): JSX.Element | null => {
   // 可用的目标字段列表
   const targetFields = [
     { id: 'employee_no', name: '工号' },
@@ -159,12 +160,21 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
           <div className="step-content file-selection">
             <h3>选择员工数据文件</h3>
             <p>请选择包含员工数据的Excel文件(.xlsx或.xls格式)</p>
-            <input 
-              type="file" 
-              accept=".xlsx,.xls" 
-              onChange={handleFileChange}
-              className="file-input"
-            />
+            
+            <div className="file-input-container">
+              <input 
+                type="file" 
+                accept=".xlsx,.xls" 
+                onChange={handleFileChange}
+                className="file-input"
+                id="employee-file-input"
+              />
+              <label htmlFor="employee-file-input" className="file-input-label">
+                <span className="file-input-icon">📄</span>
+                <span className="file-input-text">点击选择文件或拖拽文件到这里</span>
+              </label>
+            </div>
+            
             {selectedFile && (
               <div className="selected-file">
                 <p>已选择文件: {selectedFile.name}</p>
@@ -205,7 +215,7 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
         return (
           <div className="step-content data-preview">
             <h3>数据预览</h3>
-            <p>以下是前10行数据预览，请确认数据格式是否正确:</p>
+            <p>以下是前10行数据预览，请确认数据格式是否正确: <small>(共{previewData.length}行数据)</small></p>
             
             {previewData.length > 0 ? (
               <div className="preview-table-container">
@@ -218,7 +228,7 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {previewData.map((row, i) => (
+                    {previewData.slice(0, 10).map((row, i) => (
                       <tr key={i}>
                         {row.map((cell, j) => (
                           <td key={j}>{cell?.toString() || ''}</td>
@@ -229,7 +239,9 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
                 </table>
               </div>
             ) : (
-              <p>无法预览数据，请返回选择其他工作表。</p>
+              <div className="no-data-message">
+                <p>无法预览数据，请返回选择其他工作表。</p>
+              </div>
             )}
           </div>
         );
@@ -302,31 +314,6 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
     }
   };
   
-  // 渲染步骤指示器
-  const renderStepIndicator = () => {
-    const steps = [
-      { id: 'select-file', name: '选择文件' },
-      { id: 'select-sheet', name: '选择工作表' },
-      { id: 'preview-data', name: '数据预览' },
-      { id: 'map-fields', name: '字段映射' },
-      { id: 'importing', name: '导入中' }
-    ];
-    
-    return (
-      <div className="step-indicator">
-        {steps.map((s, i) => (
-          <React.Fragment key={s.id}>
-            <div className={`step ${step === s.id ? 'active' : ''} ${getStepStatus(s.id)}`}>
-              <div className="step-number">{i + 1}</div>
-              <div className="step-name">{s.name}</div>
-            </div>
-            {i < steps.length - 1 && <div className="step-connector"></div>}
-          </React.Fragment>
-        ))}
-      </div>
-    );
-  };
-  
   // 获取步骤状态
   const getStepStatus = (stepId: string): string => {
     const stepOrder = ['select-file', 'select-sheet', 'preview-data', 'map-fields', 'importing'];
@@ -340,6 +327,37 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
     } else {
       return 'pending';
     }
+  };
+
+  // 渲染步骤指示器(水平布局)
+  const renderStepIndicator = () => {
+    const steps = [
+      { id: 'select-file', name: '选择文件' },
+      { id: 'select-sheet', name: '选择工作表' },
+      { id: 'preview-data', name: '数据预览' },
+      { id: 'map-fields', name: '字段映射' },
+      { id: 'importing', name: '导入中' }
+    ];
+    
+    return (
+      <div className="horizontal-steps-container">
+        <div className="horizontal-steps">
+          {steps.map((s, i) => (
+            <React.Fragment key={s.id}>
+              <div className={`step-item ${getStepStatus(s.id)}`}>
+                <div className="step-number">{i + 1}</div>
+                <div className="step-name">{s.name}</div>
+              </div>
+              {i < steps.length - 1 && (
+                <div className={`step-arrow ${getStepStatus(s.id) === 'completed' ? 'completed' : ''}`}>
+                  →
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    );
   };
   
   // 渲染对话框内容
@@ -399,4 +417,4 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
   );
 };
 
-export default ImportEmployeesWizard;
+export default React.memo(ImportEmployeesWizard);

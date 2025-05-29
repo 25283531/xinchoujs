@@ -535,29 +535,55 @@ const EmployeeManagement: React.FC = () => {
         
         // 尝试自动映射字段
         if (headers && headers.length > 0) {
+          // 常见的Excel表头与系统字段的映射关系
+          const commonMappings: Record<string, string[]> = {
+            'name': ['姓名', '名字', '员工姓名', '职工姓名', '姓名（必填）', '职员姓名'],
+            'employee_no': ['工号', '员工号', '员工编号', '员工工号', '职工号', '编号', '员工ID'],
+            'department_id': ['部门', '部门名称', '所属部门', '部门ID', '部门编号'],
+            'position_id': ['职位', '岗位', '职务', '工种', '岗位名称', '职位名称'],
+            'entry_date': ['入职日期', '入职时间', '到职日期', '就职日期', '雇佣日期', '入厂时间'],
+            'gender': ['性别', '员工性别', '职工性别', '性别（必填）'],
+            'phone': ['电话', '手机号', '联系电话', '手机', '电话号码', '联系方式'],
+            'address': ['地址', '住址', '员工地址', '家庭住址', '联系地址'],
+            'id_card': ['身份证', '身份证号', '身份证号码', '证件号码'],
+            'base_salary': ['工资', '基本工资', '薪资', '底薪', '基础工资'],
+            'status': ['状态', '员工状态', '在职状态', '职工状态']
+          };
+            
+          // 首先尝试精确匹配
           headers.forEach((header: string) => {
-            // 尝试根据名称相似度匹配字段
+            const headerLower = header.toLowerCase().trim();
+            
+            // 查找精确匹配
+            for (const [fieldId, mappingNames] of Object.entries(commonMappings)) {
+              if (mappingNames.some(name => name.toLowerCase() === headerLower)) {
+                initialMapping[header] = fieldId;
+                console.log(`[字段映射] 精确匹配: ${header} -> ${fieldId}`);
+                return; // 找到精确匹配就返回
+              }
+            }
+            
+            // 如果没有精确匹配，继续寻找部分匹配
             let bestMatch = '';
             let bestScore = 0;
             
             targetFields.forEach(field => {
-              // 简单的相似度评分
               let score = 0;
-              const headerLower = header.toLowerCase();
               const fieldNameLower = field.name.toLowerCase();
               const fieldIdLower = field.id.toLowerCase();
               
-              // 检查包含关系
+              // 包含关系判断（给予更高权重）
               if (headerLower.includes(fieldNameLower) || fieldNameLower.includes(headerLower)) {
-                score += 2;
-              }
-              if (headerLower.includes(fieldIdLower) || fieldIdLower.includes(headerLower)) {
-                score += 2;
+                score += 5;
               }
               
-              // 检查起始字符匹配
-              if (headerLower.startsWith(fieldNameLower.charAt(0)) || fieldNameLower.startsWith(headerLower.charAt(0))) {
-                score += 1;
+              // 给特定字段更高的识别优先级
+              if (field.id === 'name' && (
+                  headerLower.includes('姓名') || 
+                  headerLower.includes('名字') || 
+                  headerLower === '姓名' || 
+                  headerLower === '名字')) {
+                score += 10; // 姓名字段优先级最高
               }
               
               // 如果找到更好的匹配，更新
@@ -570,6 +596,7 @@ const EmployeeManagement: React.FC = () => {
             // 如果找到匹配，添加到映射
             if (bestScore > 0) {
               initialMapping[header] = bestMatch;
+              console.log(`[字段映射] 相似度匹配: ${header} -> ${bestMatch} (分数: ${bestScore})`);
             }
           });
         }
@@ -620,7 +647,8 @@ const EmployeeManagement: React.FC = () => {
       });
       
       // 批量导入员工
-      const response = await window.electronAPI['employee:batchImportEmployees'](importData);
+      console.log('[UI] 调用employee:batchImportEmployees请求批量导入员工，数据条数:', importData.length);
+      const response = await window.electronAPI.invoke('employee:batchImportEmployees', importData);
       
       if (response.success) {
         message.success(`成功导入 ${response.data.success} 名员工`);

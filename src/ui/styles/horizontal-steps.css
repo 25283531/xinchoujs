@@ -1,5 +1,5 @@
 /* 水平步骤指示器样式 */
-.horizontal-steps-container {
+.step-indicator {
   padding: 15px 20px;
   overflow-x: auto;
   background-color: white;
@@ -9,7 +9,7 @@
 .horizontal-steps {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   min-width: 700px;
   max-width: 900px;
   margin: 0 auto;
@@ -17,7 +17,7 @@
 
 .step-item {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   transition: all 0.3s;
   position: relative;
@@ -34,7 +34,7 @@
   justify-content: center;
   align-items: center;
   font-weight: bold;
-  margin-bottom: 8px;
+  margin-right: 8px;
   transition: all 0.3s;
   z-index: 2;
 }
@@ -47,7 +47,7 @@
 }
 
 .step-arrow {
-  margin: 0 8px;
+  margin: 0 12px;
   color: #d9d9d9;
   font-size: 24px;
   transition: all 0.3s;
@@ -90,7 +90,7 @@
   padding: 15px 20px;
   cursor: pointer;
   transition: all 0.3s;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 500;
   color: #333;
   min-width: 120px;
@@ -99,16 +99,17 @@
 }
 
 .sheet-item:hover {
-  background-color: #e6f7ff;
-  border-color: #91d5ff;
+  border-color: #40a9ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.1);
   transform: translateY(-2px);
 }
 
 .sheet-item.selected {
-  background-color: #1890ff;
-  color: white;
+  background-color: #e6f7ff;
+  color: #1890ff;
   border-color: #1890ff;
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
 }
 
 /* 数据预览表格滚动条样式 */

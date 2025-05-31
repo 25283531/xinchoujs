@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import '../../ui/styles/importWizard.css';
-import '../../ui/styles/horizontal-steps.css';
+import '../styles/importWizard.css';
+import '../styles/horizontal-steps.css';
 
 // 导入向导组件的属性接口
 interface ImportEmployeesWizardProps {
@@ -158,7 +158,7 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
       case 'select-file':
         return (
           <div className="step-content file-selection">
-            <h3>选择员工数据文件</h3>
+            <h3 className="file-selection-title">选择员工数据文件</h3>
             <p>请选择包含员工数据的Excel文件(.xlsx或.xls格式)</p>
             
             <div className="file-input-container">
@@ -336,11 +336,11 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
       { id: 'select-sheet', name: '选择工作表' },
       { id: 'preview-data', name: '数据预览' },
       { id: 'map-fields', name: '字段映射' },
-      { id: 'importing', name: '导入中' }
+      { id: 'importing', name: '导入员工数据' }
     ];
     
     return (
-      <div className="horizontal-steps-container">
+      <div className="step-indicator">
         <div className="horizontal-steps">
           {steps.map((s, i) => (
             <React.Fragment key={s.id}>

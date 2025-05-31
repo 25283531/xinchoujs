@@ -42,7 +42,16 @@ export interface IElectronAPI {
   'employee:deleteEmployee': (id: number) => Promise<{ success: boolean; message?: string }>;
 
   // EmployeeService IPC (批量操作)
-  'employee:batchImportEmployees': (employees: any[]) => Promise<{ success: boolean; data: { success: number; failures: number }; message?: string }>;
+  'employee:batchImportEmployees': (employees: any[]) => Promise<{
+    success: boolean, 
+    partialSuccess?: boolean,
+    data?: {
+      success: number, 
+      failures: number, 
+      failedRecords?: any[]
+    }, 
+    message?: string
+  }>;
 
   // OrganizationService IPC (新的命名空间方式)
   'organization:getAllDepartments': () => Promise<{ success: boolean; data: any[]; message?: string }>;

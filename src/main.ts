@@ -530,16 +530,38 @@ async function initializeServicesAndIPC() {
       // 调用服务进行批量导入
       const result = await employeeService.batchImportEmployees(employees);
       
-      console.log(`[IPC Main] 批量导入员工完成，成功: ${result.success}，失败: ${result.failures}`);
+      console.log(`[IPC Main] 批量导入员工完成，成功: ${result.success}，失败: ${result.failures}，失败记录: ${result.failedRecords.length}`);
+      
+      // 如果有失败记录，但仍有部分成功，返回部分成功的结果
+      if (result.failures > 0 && result.success > 0) {
+        return { 
+          success: true, 
+          partialSuccess: true,
+          data: result 
+        };
+      }
+      
+      // 如果全部成功或全部失败
       return { 
-        success: true, 
-        data: result 
+        success: result.success > 0, 
+        partialSuccess: false,
+        data: result,
+        message: result.success === 0 ? '所有员工导入失败' : undefined
       };
     } catch (error: any) {
       console.error('[IPC Main] employee:batchImportEmployees 错误:', error);
       return { 
         success: false, 
-        message: error.message || '批量导入员工失败' 
+        partialSuccess: false,
+        message: error.message || '批量导入员工失败',
+        data: {
+          success: 0,
+          failures: employees.length,
+          failedRecords: [{
+            errorType: '系统错误',
+            errorMessage: error.message || '批量导入员工失败'
+          }]
+        }
       };
     }
   });

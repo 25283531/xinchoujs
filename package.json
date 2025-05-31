@@ -9,7 +9,7 @@
     "build": "tsc -b tsconfig.main.json && tsc src/preload.ts --outDir build && npm run build:ui:esbuild",
     "build:main": "tsc -b tsconfig.main.json",
     "build:ui": "tsc -b tsconfig.ui.json",
-    "build:ui:esbuild": "esbuild src/ui/index.tsx --bundle --outfile=build/ui.js --platform=browser --format=esm --external:sqlite3 --external:sqlite",
+    "build:ui:esbuild": "node build-ui.js",
     "test": "jest",
     "lint": "eslint src --ext .ts,.tsx"
   },

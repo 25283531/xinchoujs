@@ -409,5 +409,17 @@ export class EmployeeRepository extends BaseRepository {
     );
   }
 
-
+  /**
+   * 执行安全的数据库事务（带错误处理）
+   * 此方法暴露了BaseRepository中的safeTransaction方法
+   * @param operations 事务操作函数
+   * @param errorMessage 错误消息
+   * @returns 是否成功
+   */
+  public async safeTransaction(
+    operations: () => Promise<void>,
+    errorMessage: string
+  ): Promise<boolean> {
+    return super.safeTransaction(operations, errorMessage);
+  }
 }

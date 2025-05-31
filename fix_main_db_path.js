@@ -34,13 +34,13 @@ const currentPath = match[0];
 console.log('当前数据库路径配置:', currentPath);
 
 // 检查是否需要修改
-if (currentPath.includes('hr_payroll.db')) {
+if (currentPath.includes('payroll.db')) {
   console.log('数据库路径配置已经正确，无需修改');
   process.exit(0);
 }
 
-// 修改为使用hr_payroll.db
-const newPath = `const dbPath = path.join(__dirname, '../data/hr_payroll.db');`;
+// 修改为使用payroll.db
+const newPath = `const dbPath = path.join(__dirname, '../data/payroll.db');`;
 content = content.replace(dbPathRegex, newPath);
 
 // 写入文件

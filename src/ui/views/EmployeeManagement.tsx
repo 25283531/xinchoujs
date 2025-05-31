@@ -185,7 +185,7 @@ const EmployeeManagement: React.FC = () => {
   }, []);
 
   // 获取员工数据
-  const fetchEmployees = useCallback(async (departmentId?: number) => {
+  const fetchEmployees = useCallback(async (departmentId?: number, retryCount: number = 0, isAfterImport: boolean = false) => {
     try {
       setIsLoading(true);
       // 打印日志，调试API调用
@@ -240,13 +240,42 @@ const EmployeeManagement: React.FC = () => {
         
         console.log('Processed employees:', employeesWithDetails);
         setEmployees(employeesWithDetails);
+        
+        // 如果是导入后的刷新，检查数据是否已更新
+        if (isAfterImport && employeesWithDetails.length === 0 && retryCount < 3) {
+          console.log(`导入后刷新数据为空，将在1秒后进行第${retryCount + 1}次重试`);
+          setTimeout(() => {
+            fetchEmployees(departmentId, retryCount + 1, true);
+          }, 1000);
+          return;
+        }
       } else {
         console.error('获取员工数据失败:', employeeData);
-        message.error('获取员工数据失败: ' + (employeeData?.message || '未知错误'));
+        
+        // 如果是导入后的刷新，尝试重试
+        if (isAfterImport && retryCount < 3) {
+          console.log(`导入后获取数据失败，将在1秒后进行第${retryCount + 1}次重试`);
+          setTimeout(() => {
+            fetchEmployees(departmentId, retryCount + 1, true);
+          }, 1000);
+          return;
+        } else {
+          message.error('获取员工数据失败: ' + (employeeData?.message || '未知错误'));
+        }
       }
     } catch (error) {
       console.error('获取员工数据出错:', error);
-      message.error('获取员工数据出错: ' + (error as Error).message);
+      
+      // 如果是导入后的刷新，尝试重试
+      if (isAfterImport && retryCount < 3) {
+        console.log(`导入后获取数据出错，将在1秒后进行第${retryCount + 1}次重试`);
+        setTimeout(() => {
+          fetchEmployees(departmentId, retryCount + 1, true);
+        }, 1000);
+        return;
+      } else {
+        message.error('获取员工数据出错: ' + (error as Error).message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -651,20 +680,153 @@ const EmployeeManagement: React.FC = () => {
       const response = await window.electronAPI.invoke('employee:batchImportEmployees', importData);
       
       if (response.success) {
-        message.success(`成功导入 ${response.data.success} 名员工`);
-        
-        if (response.data.failures > 0) {
-          message.warning(`${response.data.failures} 名员工导入失败`);
+        // 全部成功的情况
+        if (!response.partialSuccess) {
+          message.success(`成功导入 ${response.data.success} 名员工`);
+          // 重新获取员工列表，启用导入后重试机制
+          fetchEmployees(selectedDepartment || undefined, 0, true);
+          setIsImportModalVisible(false);
+        } else {
+          // 部分成功的情况
+          // 显示部分成功的详细信息
+          Modal.info({
+            title: '员工导入部分成功',
+            width: 800,
+            content: (
+              <div>
+                <p>
+                  <span style={{ color: '#52c41a', fontWeight: 'bold' }}>{response.data.success}</span> 名员工导入成功，
+                  <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>{response.data.failures}</span> 名员工导入失败
+                </p>
+                
+                <div style={{ marginTop: '20px' }}>
+                  <h4>失败记录详情：</h4>
+                  <div style={{ maxHeight: '400px', overflow: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2' }}>行号</th>
+                          <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2' }}>工号</th>
+                          <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2' }}>姓名</th>
+                          <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2' }}>错误类型</th>
+                          <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2' }}>错误信息</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {response.data.failedRecords.map((record: any, index: number) => (
+                          <tr key={index}>
+                            <td style={{ border: '1px solid #ddd', padding: '8px' }}>{record.rowIndex || '-'}</td>
+                            <td style={{ border: '1px solid #ddd', padding: '8px' }}>{record.employee_no || '-'}</td>
+                            <td style={{ border: '1px solid #ddd', padding: '8px' }}>{record.name || '-'}</td>
+                            <td style={{ border: '1px solid #ddd', padding: '8px' }}>{record.errorType || '-'}</td>
+                            <td style={{ border: '1px solid #ddd', padding: '8px' }}>{record.errorMessage || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                
+                <div style={{ marginTop: '20px' }}>
+                  <p>请修正以上错误后重新导入失败的记录。</p>
+                  <p>常见错误原因：</p>
+                  <ul>
+                    <li>员工工号重复（数据库约束冲突）</li>
+                    <li>必填字段缺失（如姓名、工号）</li>
+                    <li>数据格式不正确（如日期格式）</li>
+                    <li>部门或职位ID不存在</li>
+                  </ul>
+                </div>
+              </div>
+            ),
+            okText: '我知道了',
+            onOk: () => {
+              // 重新获取员工列表，启用导入后重试机制
+              fetchEmployees(selectedDepartment || undefined, 0, true);
+              // 返回到导入向导的第一步，而不是关闭整个导入模态框
+              setImportStep('select-file');
+            }
+          });
         }
-        
-        // 重新获取员工列表
-        fetchEmployees(selectedDepartment || undefined);
-        setIsImportModalVisible(false);
       } else {
-        message.error('批量导入员工失败: ' + response.message);
+        // 全部失败的情况
+        // 显示详细的错误信息
+        Modal.error({
+          title: '批量导入员工失败',
+          width: 800,
+          content: (
+            <div>
+              <p>导入过程中发生错误：</p>
+              <p style={{ color: '#ff4d4f', fontWeight: 'bold' }}>{response.message}</p>
+              
+              {response.data && response.data.failedRecords && response.data.failedRecords.length > 0 && (
+                <div style={{ marginTop: '20px' }}>
+                  <h4>失败记录详情：</h4>
+                  <div style={{ maxHeight: '400px', overflow: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2' }}>行号</th>
+                          <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2' }}>工号</th>
+                          <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2' }}>姓名</th>
+                          <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2' }}>错误类型</th>
+                          <th style={{ border: '1px solid #ddd', padding: '8px', backgroundColor: '#f2f2f2' }}>错误信息</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {response.data.failedRecords.map((record: any, index: number) => (
+                          <tr key={index}>
+                            <td style={{ border: '1px solid #ddd', padding: '8px' }}>{record.rowIndex || '-'}</td>
+                            <td style={{ border: '1px solid #ddd', padding: '8px' }}>{record.employee_no || '-'}</td>
+                            <td style={{ border: '1px solid #ddd', padding: '8px' }}>{record.name || '-'}</td>
+                            <td style={{ border: '1px solid #ddd', padding: '8px' }}>{record.errorType || '-'}</td>
+                            <td style={{ border: '1px solid #ddd', padding: '8px' }}>{record.errorMessage || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              
+              <div style={{ marginTop: '20px' }}>
+                <p>可能的原因：</p>
+                <ul>
+                  <li>员工工号重复（数据库约束冲突）</li>
+                  <li>必填字段缺失（如姓名、工号）</li>
+                  <li>数据格式不正确（如日期格式）</li>
+                  <li>部门或职位ID不存在</li>
+                </ul>
+                <p>请检查您的数据并重试。</p>
+              </div>
+            </div>
+          ),
+          okText: '我知道了',
+          onOk: () => {
+            // 返回到导入向导的第一步，而不是关闭整个导入模态框
+            setImportStep('select-file');
+          }
+        });
+        console.error('批量导入员工失败:', response.message);
       }
     } catch (error) {
-      message.error('执行导入出错: ' + (error as Error).message);
+      // 显示详细的错误信息
+      Modal.error({
+        title: '执行导入出错',
+        content: (
+          <div>
+            <p>导入过程中发生异常：</p>
+            <p style={{ color: '#ff4d4f', fontWeight: 'bold' }}>{(error as Error).message}</p>
+            <p>请联系系统管理员或检查日志获取更多信息。</p>
+          </div>
+        ),
+        okText: '我知道了',
+          onOk: () => {
+            // 返回到导入向导的第一步，而不是关闭整个导入模态框
+            setImportStep('select-file');
+          }
+      });
+      console.error('执行导入出错:', error);
     } finally {
       setIsLoading(false);
     }
@@ -879,11 +1041,15 @@ const EmployeeManagement: React.FC = () => {
           <Form.Item
             name="employee_no"
             label="员工工号"
-            rules={[{ required: true, message: '请输入员工工号' }]}
+            rules={[
+              { required: true, message: '请输入员工工号' },
+              { pattern: /^[A-Za-z0-9]+$/, message: '工号只能包含字母和数字' }
+            ]}
             validateStatus={fieldErrors.employee_no ? 'error' : undefined}
             help={fieldErrors.employee_no}
+            tooltip="工号格式要求：只能包含字母和数字"
           >
-            <Input placeholder="请输入员工工号" />
+            <Input placeholder="请输入员工工号（只能包含字母和数字）" />
           </Form.Item>
           
           <Form.Item

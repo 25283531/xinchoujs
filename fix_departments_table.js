@@ -7,7 +7,7 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 // 打开数据库连接
-const dbPath = path.join(__dirname, 'data', 'hr_payroll.db');
+const dbPath = path.join(__dirname, 'data', 'payroll.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('无法连接到数据库:', err.message);

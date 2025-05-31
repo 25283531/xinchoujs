@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/importWizard.css';
-import '../styles/horizontal-steps.css';
+import styles from './ImportEmployeesWizard.module.css';
 
 // 导入向导组件的属性接口
 interface ImportEmployeesWizardProps {
@@ -157,26 +156,26 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
     switch (step) {
       case 'select-file':
         return (
-          <div className="step-content file-selection">
-            <h3 className="file-selection-title">选择员工数据文件</h3>
+          <div>
+            <h3>选择员工数据文件</h3>
             <p>请选择包含员工数据的Excel文件(.xlsx或.xls格式)</p>
             
-            <div className="file-input-container">
+            <div className={styles.fileSelectArea}>
               <input 
                 type="file" 
                 accept=".xlsx,.xls" 
                 onChange={handleFileChange}
-                className="file-input"
+                style={{ display: 'none' }}
                 id="employee-file-input"
               />
-              <label htmlFor="employee-file-input" className="file-input-label">
-                <span className="file-input-icon">📄</span>
-                <span className="file-input-text">点击选择文件或拖拽文件到这里</span>
+              <label htmlFor="employee-file-input" style={{ cursor: 'pointer', display: 'block' }}>
+                <span style={{ fontSize: '48px', display: 'block', marginBottom: '16px' }}>📄</span>
+                <span>点击选择文件或拖拽文件到这里</span>
               </label>
             </div>
             
             {selectedFile && (
-              <div className="selected-file">
+              <div style={{ marginTop: '20px', padding: '16px', backgroundColor: '#f0f8ff', borderRadius: '8px' }}>
                 <p>已选择文件: {selectedFile.name}</p>
               </div>
             )}
@@ -185,22 +184,22 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
         
       case 'select-sheet':
         return (
-          <div className="step-content sheet-selection">
+          <div>
             <h3>选择工作表</h3>
             <p>该Excel文件包含以下工作表，请选择要导入的工作表:</p>
-            <div className="sheets-list">
+            <div className={styles.sheetsList}>
               {fileSheets.length > 0 ? (
                 fileSheets.map(sheet => (
                   <div 
                     key={sheet} 
-                    className={`sheet-item ${selectedSheet === sheet ? 'selected' : ''}`}
+                    className={`${styles.sheetItem} ${selectedSheet === sheet ? styles.selected : ''}`}
                     onClick={() => onSheetSelect(sheet)}
                   >
                     {sheet}
                   </div>
                 ))
               ) : (
-                <div className="no-sheets">未找到工作表，请返回上一步重新选择文件</div>
+                <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>未找到工作表，请返回上一步重新选择文件</div>
               )}
             </div>
             {/* 添加调试信息 */}
@@ -213,13 +212,13 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
         
       case 'preview-data':
         return (
-          <div className="step-content data-preview">
+          <div>
             <h3>数据预览</h3>
             <p>以下是前10行数据预览，请确认数据格式是否正确: <small>(共{previewData.length}行数据)</small></p>
             
             {previewData.length > 0 ? (
-              <div className="preview-table-container">
-                <table className="preview-table">
+              <div style={{ overflowX: 'auto', marginTop: '20px' }}>
+                <table className={styles.previewTable}>
                   <thead>
                     <tr>
                       {headers.map((header, i) => (
@@ -239,7 +238,7 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
                 </table>
               </div>
             ) : (
-              <div className="no-data-message">
+              <div style={{ padding: '40px', textAlign: 'center', color: '#999', backgroundColor: '#f9f9f9', borderRadius: '8px', marginTop: '20px' }}>
                 <p>无法预览数据，请返回选择其他工作表。</p>
               </div>
             )}
@@ -248,44 +247,103 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
         
       case 'map-fields':
         return (
-          <div className="step-content field-mapping">
+          <div>
             <h3>字段映射</h3>
             <p>请将Excel表格中的列映射到员工数据字段:</p>
             
+            <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '4px' }}>
+              <h4 style={{ color: '#52c41a', marginTop: 0 }}>数据验证提示</h4>
+              <p>系统将在导入前对数据进行验证，请确保：</p>
+              <ul>
+                <li><strong>工号</strong>和<strong>姓名</strong>为必填字段</li>
+                <li><strong>工号</strong>格式正确（字母、数字和连字符）</li>
+                <li><strong>入职日期</strong>支持多种格式：YYYY-MM-DD、YYYY-MM、YYYY/MM/DD、YYYY.MM.DD、DD/MM/YYYY、MM/DD/YYYY，以及Excel日期值</li>
+                <li><strong>基本工资</strong>必须是数字</li>
+                <li><strong>手机号</strong>格式为11位数字（1开头）</li>
+                <li><strong>邮箱</strong>格式正确（包含@符号）</li>
+                <li><strong>身份证号</strong>格式为18位（最后一位可以是X）</li>
+              </ul>
+              <p>如果数据不符合要求，系统会在导入结果中显示具体错误信息。</p>
+            </div>
+            
             <button 
-              className="auto-map-button" 
+              className={styles.secondaryButton}
               onClick={autoMapFields}
+              style={{ marginBottom: '20px' }}
             >
               自动映射字段
             </button>
             
-            <div className="mapping-table-container">
-              <table className="mapping-table">
+            <div style={{ overflowX: 'auto' }}>
+              <table className={styles.previewTable}>
                 <thead>
                   <tr>
                     <th>Excel列名</th>
                     <th>映射到字段</th>
+                    <th>必填</th>
+                    <th>格式要求</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {headers.map((header, i) => (
-                    <tr key={i}>
-                      <td>{header}</td>
-                      <td>
-                        <select 
-                          value={fieldMapping[header] || ''}
-                          onChange={(e) => handleMappingChange(header, e.target.value)}
-                        >
-                          <option value="">-- 不导入此字段 --</option>
-                          {targetFields.map(field => (
-                            <option key={field.id} value={field.id}>
-                              {field.name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
+                  {headers.map((header, i) => {
+                    const selectedField = fieldMapping[header] || '';
+                    let isRequired = false;
+                    let formatRequirement = '';
+                    
+                    // 根据字段类型设置验证信息
+                    switch (selectedField) {
+                      case 'employee_no':
+                        isRequired = true;
+                        formatRequirement = '字母、数字和连字符';
+                        break;
+                      case 'name':
+                        isRequired = true;
+                        formatRequirement = '不能为空';
+                        break;
+                      case 'entry_date':
+                        formatRequirement = '支持多种日期格式';
+                        break;
+                      case 'base_salary':
+                        formatRequirement = '数字';
+                        break;
+                      case 'phone':
+                        formatRequirement = '11位数字（1开头）';
+                        break;
+                      case 'email':
+                        formatRequirement = '包含@符号';
+                        break;
+                      case 'id_card':
+                        formatRequirement = '18位（最后一位可以是X）';
+                        break;
+                    }
+                    
+                    return (
+                      <tr key={i}>
+                        <td>{header}</td>
+                        <td>
+                          <select 
+                            value={selectedField}
+                            onChange={(e) => handleMappingChange(header, e.target.value)}
+                          >
+                            <option value="">-- 不导入此字段 --</option>
+                            {targetFields.map(field => (
+                              <option key={field.id} value={field.id}>
+                                {field.name}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          {isRequired ? (
+                            <span style={{ color: '#ff4d4f' }}>是</span>
+                          ) : (
+                            <span>否</span>
+                          )}
+                        </td>
+                        <td>{formatRequirement}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -294,19 +352,21 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
         
       case 'importing':
         return (
-          <div className="step-content importing">
+          <div>
             <h3>正在导入数据</h3>
-            <div className="progress-container">
-              <div 
-                className="progress-bar"
-                style={{ width: `${importProgress}%` }}
-              ></div>
+            <div className={styles.progressContainer}>
+              <div className={styles.progressBar}>
+                <div 
+                  className={styles.progressFill}
+                  style={{ width: `${importProgress}%` }}
+                ></div>
+              </div>
             </div>
-            <p>{importProgress}% 已完成</p>
+            <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '18px', fontWeight: 'bold' }}>{importProgress}% 已完成</p>
             {importProgress === 100 && (
-              <div className="import-complete">
-                <h4>导入完成！</h4>
-                <p>员工数据已成功导入系统。</p>
+              <div style={{ textAlign: 'center', marginTop: '30px', padding: '20px', backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '8px' }}>
+                <h4 style={{ color: '#52c41a', marginBottom: '8px' }}>导入完成！</h4>
+                <p style={{ color: '#52c41a' }}>员工数据已成功导入系统。</p>
               </div>
             )}
           </div>
@@ -340,16 +400,16 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
     ];
     
     return (
-      <div className="step-indicator">
-        <div className="horizontal-steps">
+      <div className={styles.stepIndicator}>
+        <div className={styles.horizontalSteps}>
           {steps.map((s, i) => (
             <React.Fragment key={s.id}>
-              <div className={`step-item ${getStepStatus(s.id)}`}>
-                <div className="step-number">{i + 1}</div>
-                <div className="step-name">{s.name}</div>
+              <div className={`${styles.stepItem} ${styles[getStepStatus(s.id)]}`}>
+                <div className={styles.stepNumber}>{i + 1}</div>
+                <div className={styles.stepName}>{s.name}</div>
               </div>
               {i < steps.length - 1 && (
-                <div className={`step-arrow ${getStepStatus(s.id) === 'completed' ? 'completed' : ''}`}>
+                <div className={`${styles.stepArrow} ${getStepStatus(s.id) === 'completed' ? styles.completed : ''}`}>
                   →
                 </div>
               )}
@@ -364,23 +424,23 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
   if (!isOpen) return null;
   
   return (
-    <div className="import-wizard-backdrop">
-      <div className="import-wizard-modal">
-        <div className="import-wizard-header">
+    <div className={styles.wizardBackdrop}>
+      <div className={styles.wizardModal}>
+        <div className={styles.wizardHeader}>
           <h2>批量导入员工数据</h2>
-          <button className="close-button" onClick={onClose}>×</button>
+          <button className={styles.closeButton} onClick={onClose}>×</button>
         </div>
         
         {renderStepIndicator()}
         
-        <div className="import-wizard-content">
+        <div className={styles.wizardContent}>
           {renderStepContent()}
         </div>
         
-        <div className="import-wizard-footer">
+        <div className={styles.wizardFooter}>
           {step !== 'select-file' && step !== 'importing' && (
             <button 
-              className="back-button"
+              className={styles.secondaryButton}
               onClick={handleBack}
             >
               上一步
@@ -389,7 +449,7 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
           
           {step !== 'importing' && (
             <button 
-              className="next-button"
+              className={styles.primaryButton}
               onClick={handleNext}
               disabled={
                 // 在选择文件阶段，文件已选择则启用按钮
@@ -405,7 +465,7 @@ const ImportEmployeesWizard: React.FC<ImportEmployeesWizardProps> = ({
           
           {step === 'importing' && importProgress === 100 && (
             <button 
-              className="finish-button"
+              className={styles.primaryButton}
               onClick={onClose}
             >
               完成

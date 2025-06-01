@@ -15,6 +15,8 @@ import { AddIsPresetToSalaryItems } from './004_add_is_preset_to_salary_items';
 import { FixMissingTablesAndColumns } from './005_fix_missing_tables_and_columns';
 import { AddMissingEmployeeFields } from './006_add_missing_employee_fields';
 import { CreatePositionsTable } from './007_create_positions_table';
+import { FixDuplicateColumns } from './008_fix_duplicate_columns';
+import { ConsolidatedSchema } from './009_consolidated_schema';
 // 在此处导入其他迁移脚本
 
 export class MigrationManager {
@@ -100,6 +102,8 @@ export class MigrationManager {
       new FixMissingTablesAndColumns(),
       new AddMissingEmployeeFields(),
       new CreatePositionsTable(),
+      new FixDuplicateColumns(),
+      new ConsolidatedSchema(),
       // 在此处添加其他迁移脚本
     ].sort((a, b) => a.version - b.version);
   }

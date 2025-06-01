@@ -6,6 +6,7 @@
 // 实际项目中需要引入SQLite库，如better-sqlite3或sqlite3
 import * as sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
+import { SchemaValidator } from './utils/schemaValidator';
 
 // Define your database models and schema here
 
@@ -102,6 +103,28 @@ export class Database {
         await MigrationManager.runAllMigrations();
         
         console.log('数据库迁移完成');
+        
+        // 验证数据库表结构
+        console.log('开始验证数据库表结构...');
+        const validationReport = await SchemaValidator.validateSchema();
+        
+        if (!validationReport.valid) {
+          console.warn('数据库表结构验证发现问题:');
+          console.warn(SchemaValidator.generateReadableReport(validationReport));
+          
+          // 如果有重复列问题，尝试修复
+          const hasDuplicateColumns = validationReport.tables.some(table => 
+            table.duplicateColumns.length > 0
+          );
+          
+          if (hasDuplicateColumns) {
+            console.log('检测到重复列问题，尝试通过迁移修复...');
+            // 迁移系统应该已经包含了修复重复列的迁移脚本，这里不需要额外操作
+          }
+        } else {
+          console.log('数据库表结构验证通过');
+        }
+        
         console.log('数据库初始化成功');
         return; // 初始化成功，退出循环
 

@@ -21,7 +21,17 @@ export interface ImportResult {
   }>;
 }
 
+import * as xlsx from 'xlsx';
+
+import { Employee } from '../db/employeeRepository';
+import { EmployeeServiceImpl } from './employeeService';
+
 export class ImportService {
+  private employeeService: EmployeeServiceImpl;
+  
+  constructor() {
+    this.employeeService = new EmployeeServiceImpl();
+  }
   /**
    * 导入员工数据
    * @param filePath Excel/CSV文件路径
@@ -29,31 +39,57 @@ export class ImportService {
    * @returns 导入结果
    */
   async importEmployees(filePath: string, mappings: ImportMapping[]): Promise<ImportResult> {
-    // 实际实现中需要读取Excel/CSV文件，然后根据字段映射导入数据
-    // 这里仅提供基本框架
-    
-    // 1. 读取文件
-    // const data = await this.readExcelFile(filePath);
-    
-    // 2. 验证数据
-    // const validationResult = this.validateData(data, mappings);
-    // if (!validationResult.success) {
-    //   return validationResult;
-    // }
-    
-    // 3. 导入数据
-    // const importResult = await this.saveEmployees(data, mappings);
-    
-    // 4. 返回结果
-    // return importResult;
-    
-    return {
-      success: true,
+    const result: ImportResult = {
+      success: false,
       total: 0,
       imported: 0,
       failed: 0,
       errors: []
     };
+
+    try {
+      // 1. 读取Excel文件
+      const data = await this.readExcelFile(filePath);
+      result.total = data.length;
+      if (data.length === 0) {
+        result.errors.push({ row: 0, message: '文件中无有效数据' });
+        return result;
+      }
+
+      // 2. 数据字段映射转换
+      const mappedEmployees: Omit<Employee, 'id' | 'department_name' | 'position_name'>[] = [];
+      for (const [rowIndex, rowData] of data.entries()) {
+        const employee: Partial<Omit<Employee, 'id' | 'department_name' | 'position_name'>> = {};
+        let isValidRow = true;
+
+        for (const { sourceField, targetField, required, defaultValue } of mappings) {
+          const rawValue = rowData[sourceField];
+          if (required && (rawValue === undefined || rawValue === null || rawValue === '')) {
+            result.errors.push({ row: rowIndex + 1, message: `字段 ${targetField} 为必填项` });
+            isValidRow = false;
+            break;
+          }
+          employee[targetField as keyof typeof employee] = rawValue ?? defaultValue;
+        }
+
+        if (isValidRow) {
+          mappedEmployees.push(employee as Omit<Employee, 'id' | 'department_name' | 'position_name'>);
+        } else {
+          result.failed++;
+        }
+      }
+
+      // 3. 调用员工服务批量导入
+      const batchResult = await this.employeeService.batchImportEmployees(mappedEmployees);
+      result.imported = batchResult.success;
+      result.failed += batchResult.failures;
+      result.success = result.imported > 0;
+
+    } catch (error) {
+      result.errors.push({ row: 0, message: `导入失败: ${error instanceof Error ? error.message : '未知错误'}` });
+    }
+
+    return result;
   }
   
   /**
@@ -180,15 +216,9 @@ export class ImportService {
    * @returns 文件数据
    */
   private async readExcelFile(filePath: string): Promise<any[]> {
-    // 实际实现中需要使用Excel库读取文件
-    // 这里仅提供基本框架
-    
-    // const workbook = await xlsx.readFile(filePath);
-    // const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    // const data = xlsx.utils.sheet_to_json(worksheet);
-    // return data;
-    
-    return [];
+    const workbook = xlsx.readFile(filePath);
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    return xlsx.utils.sheet_to_json(worksheet, { defval: null });
   }
   
   /**

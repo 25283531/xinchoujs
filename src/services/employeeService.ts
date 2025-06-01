@@ -209,15 +209,25 @@ export class EmployeeServiceImpl implements IEmployeeService {
   /**
    * 批量导入员工
    * @param employees 员工信息数组
-   * @returns 成功和失败的数量，以及失败的记录
+   * @returns 成功和失败的数量以及失败记录
    */
   public async batchImportEmployees(employees: Omit<Employee, 'id' | 'department_name' | 'position_name'>[]): Promise<{success: number, failures: number, failedRecords: any[]}> {
     console.log(`[EmployeeService] 开始批量导入 ${employees.length} 名员工`);
-
+    
+    let successCount = 0;
+    let failureCount = 0;
+    const failedRecords: any[] = [];
+    
+    // 获取所有现有员工，用于检查工号是否已存在
+    const allEmployees = await this.getAllEmployees();
+    const existingEmployeeNoSet = new Set<string>(
+      allEmployees.map(e => e.employee_no)
+    );
+    
     // 1. 工号标准化和唯一性检查
     const employeeNoMap = new Map<string, number>();
     const duplicateNos: string[] = [];
-    const duplicateRecords: any[] = [];
+    
     employees.forEach((emp, idx) => {
       if (emp.employee_no && typeof emp.employee_no === 'string') {
         emp.employee_no = emp.employee_no.trim().toUpperCase();
@@ -225,149 +235,163 @@ export class EmployeeServiceImpl implements IEmployeeService {
       if (emp.employee_no) {
         if (employeeNoMap.has(emp.employee_no)) {
           duplicateNos.push(emp.employee_no);
-          duplicateRecords.push({ ...emp, rowIndex: idx + 2, errorType: '工号重复', errorMessage: `导入数据中工号重复: ${emp.employee_no}` });
         } else {
           employeeNoMap.set(emp.employee_no, idx);
         }
       }
     });
-    // 不再抛出异常，后续处理时跳过这些重复工号的数据
+    
     if (duplicateNos.length > 0) {
       console.warn(`[EmployeeService] 导入数据中存在重复工号: ${[...new Set(duplicateNos)].join(', ')}`);
     }
-    let successCount = 0;
-    let failureCount = 0;
-    const failedRecords: any[] = [];
     
-    // 获取所有员工，用于检查工号是否已存在
-    const allEmployees = await this.getAllEmployees();
-    const existingEmployeeNos = new Map<string, number>();
-    
-    // 创建工号到ID的映射，用于更新已存在的员工
-    allEmployees.forEach(emp => {
-      if (emp.employee_no) {
-        existingEmployeeNos.set(emp.employee_no.toString(), emp.id);
+    // 检查数据库表结构
+    try {
+      const db = this.employeeRepository['db'];
+      const tableInfo = await db.all("PRAGMA table_info(employees)");
+      console.log(`[EmployeeService] 数据库employees表结构检查: ${tableInfo.length} 列`);
+      
+      // 检查是否有重复列
+      const columnNames = tableInfo.map((col: any) => col.name);
+      const uniqueColumnNames = new Set(columnNames);
+      if (columnNames.length !== uniqueColumnNames.size) {
+        console.warn(`[EmployeeService] 警告: employees表存在重复列定义!`);
+        const duplicateColumns = columnNames.filter((name: string, index: number) => {
+          return columnNames.indexOf(name) !== index;
+        });
+        console.warn(`[EmployeeService] 重复的列: ${duplicateColumns.join(', ')}`);
       }
-    });
+    } catch (error) {
+      console.error(`[EmployeeService] 检查数据库表结构时出错:`, error);
+    }
     
-    console.log(`[EmployeeService] 当前系统中有 ${existingEmployeeNos.size} 名员工记录`);
-    
-    // 创建一个临时的EmployeeRepository实例
-    const employeeRepository = new EmployeeRepository();
-    
-    // 逐个处理每个员工记录，不使用事务，允许部分成功
+    // 逐个处理每个员工记录
     for (let i = 0; i < employees.length; i++) {
       const employee = employees[i];
       const rowIndex = i + 2; // Excel行号（假设第1行是表头）
-      // 跳过导入数据内工号重复的记录
-      if (duplicateNos.includes(employee.employee_no)) {
-        failedRecords.push({ ...employee, rowIndex, errorType: '工号重复', errorMessage: `导入数据中工号重复: ${employee.employee_no}` });
-        failureCount++;
-        continue;
-      }
       
       try {
+        // 跳过导入数据内工号重复的记录
+        if (duplicateNos.includes(employee.employee_no)) {
+          failedRecords.push({ 
+            ...employee, 
+            rowIndex, 
+            errorType: '工号重复', 
+            errorMessage: `导入数据中工号重复: ${employee.employee_no}` 
+          });
+          failureCount++;
+          continue;
+        }
+        
         // 数据验证
         const validation = this.validateEmployeeData(employee);
         if (!validation.isValid) {
-          const errorRecord = {
+          failedRecords.push({
             ...employee,
             rowIndex,
             errorType: '数据验证失败',
             errorMessage: validation.errors.join('; ')
-          };
-          failedRecords.push(errorRecord);
+          });
           failureCount++;
           console.warn(`[EmployeeService] 员工数据验证失败 (行 ${rowIndex}):`, validation.errors);
           continue;
         }
         
-        // 检查员工是否已存在（基于工号）
-        const employeeNo = employee.employee_no.toString();
-        // 再次检查工号是否已存在（可能在本次导入中刚添加）
-        if (existingEmployeeNos.has(employeeNo)) {
-          // 员工已存在（数据库中或本次导入中），执行更新操作
-          const existingId = existingEmployeeNos.get(employeeNo)!;
-          console.log(`[EmployeeService] 员工工号 ${employeeNo} 已存在 (ID: ${existingId})，尝试更新...`);
-          try {
-            const updateResult = await employeeRepository.updateEmployee(existingId, employee);
-            if (updateResult) {
-              successCount++;
-              console.log(`[EmployeeService] 成功更新员工: ${employee.name} (ID: ${existingId})`);
-            } else {
-              const errorRecord = {
-                ...employee,
-                rowIndex,
-                errorType: '更新失败',
-                errorMessage: `更新员工数据失败: ${employee.name}, 工号: ${employeeNo}`
-              };
-              failedRecords.push(errorRecord);
-              failureCount++;
-              console.error(`[EmployeeService] 更新员工数据失败: ${employee.name}, 工号: ${employeeNo}`);
-            }
-          } catch (updateError: any) {
-            const errorRecord = {
-              ...employee,
-              rowIndex,
-              errorType: '更新异常',
-              errorMessage: updateError && updateError.message && updateError.message.includes('UNIQUE constraint failed')
-                ? `工号唯一性冲突（数据库已存在相同工号）: ${employeeNo}`
-                : `更新员工时发生异常: ${updateError.message || '未知错误'}`
-            };
-            failedRecords.push(errorRecord);
-            failureCount++;
-            console.error(`[EmployeeService] 更新员工时发生异常: ${employee.name}, 工号: ${employeeNo}`, updateError);
-          }
-        } else {
-          // 员工不存在，执行创建操作
-          console.log(`[EmployeeService] 员工工号 ${employeeNo} 不存在，尝试创建...`);
-          try {
-            const newId = await employeeRepository.createEmployee(employee);
-            if (newId > 0) {
-              // 更新映射，以防后续有重复工号
-              existingEmployeeNos.set(employeeNo, newId);
-              successCount++;
-              console.log(`[EmployeeService] 成功创建员工: ${employee.name} (ID: ${newId})`);
-            } else {
-              const errorRecord = {
+        // 检查工号是否已存在
+        if (existingEmployeeNoSet.has(employee.employee_no)) {
+          failedRecords.push({
+            ...employee,
+            rowIndex,
+            errorType: '工号冲突',
+            errorMessage: `工号 ${employee.employee_no} 已存在于数据库中`
+          });
+          failureCount++;
+          continue;
+        }
+        
+        // 创建员工
+        console.log(`[EmployeeService] 尝试创建员工: ${employee.name}, 工号: ${employee.employee_no}`);
+        try {
+          const newId = await this.createEmployee(employee);
+          if (newId > 0) {
+            existingEmployeeNoSet.add(employee.employee_no); // 更新缓存
+            successCount++;
+            console.log(`[EmployeeService] 成功创建员工: ${employee.name} (ID: ${newId})`);
+          } else {
+            // 尝试直接使用数据库操作创建员工
+            console.log(`[EmployeeService] 常规创建失败，尝试直接使用数据库操作创建员工...`);
+            try {
+              const db = this.employeeRepository['db'];
+              const columns = [
+                'employee_no', 'name', 'gender', 'department', 'position', 
+                'entry_date', 'status', 'base_salary'
+              ];
+              const placeholders = columns.map(() => '?').join(', ');
+              const values = [
+                employee.employee_no,
+                employee.name,
+                employee.gender || 'male',
+                employee.department_id,
+                employee.position_id,
+                employee.entry_date,
+                employee.status === 'active' ? 1 : 0,
+                employee.base_salary || 0
+              ];
+              
+              const result = await db.run(
+                `INSERT INTO employees (${columns.join(', ')}) VALUES (${placeholders})`,
+                values
+              );
+              
+              if (result && result.lastID > 0) {
+                existingEmployeeNoSet.add(employee.employee_no); // 更新缓存
+                successCount++;
+                console.log(`[EmployeeService] 使用直接数据库操作成功创建员工: ${employee.name} (ID: ${result.lastID})`);
+              } else {
+                throw new Error('直接数据库操作创建员工失败');
+              }
+            } catch (dbError: any) {
+              console.error(`[EmployeeService] 直接数据库操作创建员工失败:`, dbError);
+              failedRecords.push({
                 ...employee,
                 rowIndex,
                 errorType: '创建失败',
-                errorMessage: `创建员工记录返回无效ID: ${employee.name}, 工号: ${employeeNo}`
-              };
-              failedRecords.push(errorRecord);
+                errorMessage: `创建员工记录失败: ${employee.name}, 工号: ${employee.employee_no}, 错误: ${dbError.message || '未知错误'}`
+              });
               failureCount++;
-              console.error(`[EmployeeService] 创建员工记录返回无效ID: ${employee.name}, 工号: ${employeeNo}`);
             }
-          } catch (createError: any) {
-             // 捕获创建时的SQLITE_CONSTRAINT等错误
-            const errorRecord = {
-              ...employee,
-              rowIndex,
-              errorType: '创建异常',
-              errorMessage: createError && createError.message && createError.message.includes('UNIQUE constraint failed')
-                ? `工号唯一性冲突（数据库已存在相同工号）: ${employeeNo}`
-                : `创建员工时发生异常: ${createError.message || '未知错误'}`
-            };
-            failedRecords.push(errorRecord);
-            failureCount++;
-            console.error(`[EmployeeService] 创建员工时发生异常: ${employee.name}, 工号: ${employeeNo}`, createError);
           }
+        } catch (createError: any) {
+          console.error(`[EmployeeService] 创建员工时发生异常:`, createError);
+          const errorMessage = createError && createError.message && createError.message.includes('UNIQUE constraint failed')
+            ? `工号唯一性冲突（数据库已存在相同工号）: ${employee.employee_no}`
+            : `创建员工时发生异常: ${createError.message || '未知错误'}`;
+            
+          failedRecords.push({
+            ...employee,
+            rowIndex,
+            errorType: '创建异常',
+            errorMessage
+          });
+          failureCount++;
         }
       } catch (error: any) {
-        const errorRecord = {
+        console.error(`[EmployeeService] 处理员工记录时发生未捕获异常:`, error);
+        failedRecords.push({
           ...employee,
           rowIndex,
           errorType: '处理异常',
-          errorMessage: error.message || '未知错误'
-        };
-        failedRecords.push(errorRecord);
+          errorMessage: `处理员工记录时发生异常: ${error.message || '未知错误'}`
+        });
         failureCount++;
-        console.error(`[EmployeeService] 处理员工记录异常 (行 ${rowIndex}):`, error);
       }
     }
     
     console.log(`[EmployeeService] 批量导入完成，成功: ${successCount}, 失败: ${failureCount}`);
+    if (failedRecords.length > 0) {
+      console.log(`[EmployeeService] 失败记录数量: ${failedRecords.length}`);
+    }
+    
     return { success: successCount, failures: failureCount, failedRecords };
   }
 }
